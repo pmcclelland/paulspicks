@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function NavBar() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -38,15 +40,25 @@ export default function NavBar() {
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
               { href: "/leaderboard", label: "Leaderboard" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="relative px-4 py-2 text-sm font-semibold text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/[0.06]"
-              >
-                {link.label}
-              </Link>
-            ))}
+            ].map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`relative px-4 py-2 text-sm font-semibold transition-colors rounded-lg ${
+                    isActive
+                      ? "text-white bg-white/[0.1]"
+                      : "text-white/60 hover:text-white hover:bg-white/[0.06]"
+                  }`}
+                >
+                  {link.label}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#F4793B] rounded-full" />
+                  )}
+                </Link>
+              );
+            })}
 
             <div className="w-px h-6 bg-white/10 mx-2" />
 
@@ -122,16 +134,23 @@ export default function NavBar() {
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
               { href: "/leaderboard", label: "Leaderboard" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="block rounded-lg px-4 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/[0.06] hover:text-white transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            ].map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`block rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "text-white bg-white/[0.1] border-l-2 border-[#F4793B]"
+                      : "text-white/70 hover:bg-white/[0.06] hover:text-white"
+                  }`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
             <div className="pt-2 mt-2 border-t border-white/[0.06]">
               {session?.user ? (
                 <>

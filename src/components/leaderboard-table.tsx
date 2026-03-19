@@ -191,7 +191,7 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
               return (
                 <TableRow
                   key={entry.userId}
-                  className={`cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
+                  className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : ""
@@ -201,13 +201,18 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                   <TableCell className="font-mono">{entry.rank}</TableCell>
                   <TableCell>
                     <span className="flex items-center">
-                      {entry.name}
+                      <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
+                        {entry.name}
+                      </span>
                       {isCurrentUser && (
                         <span className="ml-2 text-xs text-[#F4793B]">(you)</span>
                       )}
                       {badges.length > 0 && (
                         <BadgeIcons badges={badges} userId={entry.userId} />
                       )}
+                      <span className="ml-auto text-[10px] text-[#BFD4E4] group-hover:text-[#5A7A99] transition-colors hidden lg:inline">
+                        View bracket
+                      </span>
                     </span>
                   </TableCell>
                   <TableCell>
@@ -256,7 +261,7 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                   )}
                   <TableCell>
                     <svg
-                      className="w-4 h-4 text-[#BFD4E4]"
+                      className="w-4 h-4 text-[#BFD4E4] group-hover:text-[#F4793B] transition-colors"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -293,7 +298,7 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
               return (
                 <TableRow
                   key={entry.userId}
-                  className={`cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
+                  className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : ""
@@ -304,7 +309,9 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                   <TableCell>
                     <div>
                       <span className="flex items-center">
-                        {entry.name}
+                        <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
+                          {entry.name}
+                        </span>
                         {isCurrentUser && (
                           <span className="ml-1 text-xs text-[#F4793B]">(you)</span>
                         )}
@@ -333,7 +340,7 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                   </TableCell>
                   <TableCell>
                     <svg
-                      className="w-4 h-4 text-[#BFD4E4]"
+                      className="w-4 h-4 text-[#BFD4E4] group-hover:text-[#F4793B] transition-colors"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
