@@ -669,12 +669,21 @@ export default function BracketGame({
 
   return (
     <>
-      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border ${
+      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border relative ${
         isLive ? "border-green-400 ring-1 ring-green-400/20"
           : upsetInfo.level === "alert" ? "border-amber-500 ring-1 ring-amber-500/30"
           : upsetInfo.level === "potential" ? "border-amber-300 ring-1 ring-amber-300/30"
           : "border-[#BFD4E4]/80"
       }`}>
+        {upsetInfo.level && !isLive && (
+          <div className={`absolute -top-2.5 left-2 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider leading-none ${
+            upsetInfo.level === "alert"
+              ? "bg-amber-500 text-white"
+              : "bg-amber-200 text-amber-700"
+          }`}>
+            {upsetInfo.level === "alert" ? "Upset Alert" : "Upset Watch"}
+          </div>
+        )}
         {isLive && (
           <div className="bg-green-500 text-white text-[9px] font-extrabold text-center py-0.5 uppercase tracking-widest flex items-center justify-center gap-1">
             <span className="relative flex h-1.5 w-1.5">
@@ -682,15 +691,6 @@ export default function BracketGame({
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
             </span>
             Live
-          </div>
-        )}
-        {upsetInfo.level && !isLive && (
-          <div className={`text-[9px] font-extrabold text-center py-0.5 uppercase tracking-widest ${
-            upsetInfo.level === "alert"
-              ? "bg-amber-500 text-white"
-              : "bg-amber-100 text-amber-700"
-          }`}>
-            {upsetInfo.level === "alert" ? "Upset Alert" : "Upset Potential"}
           </div>
         )}
         <div className="flex">
