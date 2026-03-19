@@ -50,6 +50,42 @@ type BracketRegionProps = {
   direction: "ltr" | "rtl";
 };
 
+/**
+ * Draws bracket connector lines between two rounds.
+ * Each "pair" merges two games into one: ──┐
+ *                                           ├──
+ *                                         ──┘
+ */
+function BracketConnector({
+  pairs,
+  direction,
+}: {
+  pairs: number;
+  direction: "ltr" | "rtl";
+}) {
+  const isRtl = direction === "rtl";
+  const borderSide = isRtl ? "border-l-2" : "border-r-2";
+
+  return (
+    <div className="flex flex-col w-6 flex-shrink-0">
+      {Array.from({ length: pairs }).map((_, i) => (
+        <div key={i} className={`flex-1 flex ${isRtl ? "flex-row-reverse" : ""}`}>
+          {/* Merge: two arms join into a vertical line */}
+          <div className="flex flex-col flex-1">
+            <div className={`flex-1 border-b-2 ${borderSide} border-[#BFD4E4]`} />
+            <div className={`flex-1 border-t-2 ${borderSide} border-[#BFD4E4]`} />
+          </div>
+          {/* Output: horizontal line from midpoint to next round */}
+          <div className="flex flex-col flex-1">
+            <div className="flex-1 border-b-2 border-[#BFD4E4]" />
+            <div className="flex-1" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function BracketRegion({
   regionName,
   games,
@@ -81,77 +117,86 @@ export default function BracketRegion({
       </h3>
 
       {/* Games */}
-      <div className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} gap-3 items-stretch`}>
-        {roundNumbers.map((round) => {
+      <div className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} items-stretch`}>
+        {roundNumbers.map((round, roundIdx) => {
           const roundGames = rounds.get(round) || [];
+          const nextRound = roundNumbers[roundIdx + 1];
+          const nextRoundGames = nextRound ? (rounds.get(nextRound) || []).length : 0;
 
           return (
-            <div
-              key={round}
-              className={`flex flex-col ${round === 1 ? "gap-2" : ""} justify-center`}
-            >
-              {roundGames.map((game) => {
-                const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
-                const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
+            <div key={round} className="flex items-stretch">
+              {/* Round column */}
+              <div className={`flex flex-col ${round === 1 ? "gap-2" : ""} justify-center`}>
+                {roundGames.map((game) => {
+                  const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
+                  const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
 
-                const result: GameResult | undefined =
-                  game.status !== "scheduled"
-                    ? {
-                        winnerTeamId: game.winnerTeamId,
-                        team1Score: game.team1Score,
-                        team2Score: game.team2Score,
-                        status: game.status,
-                      }
-                    : undefined;
+                  const result: GameResult | undefined =
+                    game.status !== "scheduled"
+                      ? {
+                          winnerTeamId: game.winnerTeamId,
+                          team1Score: game.team1Score,
+                          team2Score: game.team2Score,
+                          status: game.status,
+                        }
+                      : undefined;
 
-                let playInTeams = null;
-                if (game.playInTeams) {
-                  try {
-                    playInTeams = JSON.parse(game.playInTeams);
-                  } catch {}
-                }
+                  let playInTeams = null;
+                  if (game.playInTeams) {
+                    try {
+                      playInTeams = JSON.parse(game.playInTeams);
+                    } catch {}
+                  }
 
-                const gameInfo: GameInfo = {
-                  startTime: game.startTime,
-                  venue: game.venue,
-                  broadcast: game.broadcast,
-                  round: game.round,
-                  region: game.region,
-                  gameId: game.id,
-                  spreadLine: game.spreadLine,
-                  spreadDetails: game.spreadDetails,
-                  moneylineTeam1: game.moneylineTeam1,
-                  moneylineTeam2: game.moneylineTeam2,
-                  overUnder: game.overUnder,
-                  oddsProvider: game.oddsProvider,
-                };
+                  const gameInfo: GameInfo = {
+                    startTime: game.startTime,
+                    venue: game.venue,
+                    broadcast: game.broadcast,
+                    round: game.round,
+                    region: game.region,
+                    gameId: game.id,
+                    spreadLine: game.spreadLine,
+                    spreadDetails: game.spreadDetails,
+                    moneylineTeam1: game.moneylineTeam1,
+                    moneylineTeam2: game.moneylineTeam2,
+                    overUnder: game.overUnder,
+                    oddsProvider: game.oddsProvider,
+                  };
 
-                const gameElement = (
-                  <BracketGame
-                    key={game.id}
-                    gameId={game.id}
-                    team1={team1}
-                    team2={team2}
-                    pickedTeamId={userPicks.get(game.id)}
-                    onPick={onPick}
-                    disabled={disabled}
-                    result={result}
-                    direction={direction}
-                    playInTeams={playInTeams}
-                    gameInfo={gameInfo}
-                  />
-                );
-
-                // R2+ games: wrap in flex-1 to auto-center between feeder games
-                if (round > 1) {
-                  return (
-                    <div key={game.id} className="flex-1 flex items-center">
-                      {gameElement}
-                    </div>
+                  const gameElement = (
+                    <BracketGame
+                      key={game.id}
+                      gameId={game.id}
+                      team1={team1}
+                      team2={team2}
+                      pickedTeamId={userPicks.get(game.id)}
+                      onPick={onPick}
+                      disabled={disabled}
+                      result={result}
+                      direction={direction}
+                      playInTeams={playInTeams}
+                      gameInfo={gameInfo}
+                    />
                   );
-                }
-                return gameElement;
-              })}
+
+                  if (round > 1) {
+                    return (
+                      <div key={game.id} className="flex-1 flex items-center">
+                        {gameElement}
+                      </div>
+                    );
+                  }
+                  return gameElement;
+                })}
+              </div>
+
+              {/* Connector lines to next round */}
+              {nextRoundGames > 0 && (
+                <BracketConnector
+                  pairs={nextRoundGames}
+                  direction={direction}
+                />
+              )}
             </div>
           );
         })}
