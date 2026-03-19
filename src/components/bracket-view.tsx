@@ -498,7 +498,7 @@ export default function BracketView({
                         </div>
                       </div>
                     </div>
-                    {i < 3 && <div className="w-6 flex-shrink-0" />}
+                    {i < 3 && <div className="w-8 flex-shrink-0" />}
                   </div>
                 ))}
               </div>
@@ -571,7 +571,7 @@ export default function BracketView({
                         </div>
                       </div>
                     </div>
-                    {i < 3 && <div className="w-6 flex-shrink-0" />}
+                    {i < 3 && <div className="w-8 flex-shrink-0" />}
                   </div>
                 ))}
               </div>

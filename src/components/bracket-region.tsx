@@ -33,13 +33,6 @@ export type GameData = {
   oddsProvider?: string | null;
 };
 
-const ROUND_HEADERS: Record<number, { name: string; dates: string }> = {
-  1: { name: "ROUND 1", dates: "Mar 19 - 20" },
-  2: { name: "ROUND 2", dates: "Mar 21 - 22" },
-  3: { name: "SWEET 16", dates: "Mar 26 - 27" },
-  4: { name: "ELITE 8", dates: "Mar 28 - 29" },
-};
-
 type BracketRegionProps = {
   regionName: string;
   games: GameData[];
@@ -50,37 +43,94 @@ type BracketRegionProps = {
   direction: "ltr" | "rtl";
 };
 
-function BracketConnectors({
-  pairCount,
-  direction,
-}: {
-  pairCount: number;
-  direction: "ltr" | "rtl";
-}) {
-  const isLtr = direction === "ltr";
+function renderGameCard(
+  game: GameData,
+  teams: Map<number, TeamData>,
+  userPicks: Map<number, number>,
+  onPick: (gameId: number, teamId: number) => void,
+  disabled: boolean,
+  direction: "ltr" | "rtl"
+) {
+  const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
+  const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
+
+  const result: GameResult | undefined =
+    game.status !== "scheduled"
+      ? {
+          winnerTeamId: game.winnerTeamId,
+          team1Score: game.team1Score,
+          team2Score: game.team2Score,
+          status: game.status,
+        }
+      : undefined;
+
+  let playInTeams = null;
+  if (game.playInTeams) {
+    try {
+      playInTeams = JSON.parse(game.playInTeams);
+    } catch {}
+  }
+
+  const gameInfo: GameInfo = {
+    startTime: game.startTime,
+    venue: game.venue,
+    broadcast: game.broadcast,
+    round: game.round,
+    region: game.region,
+    gameId: game.id,
+    spreadLine: game.spreadLine,
+    spreadDetails: game.spreadDetails,
+    moneylineTeam1: game.moneylineTeam1,
+    moneylineTeam2: game.moneylineTeam2,
+    overUnder: game.overUnder,
+    oddsProvider: game.oddsProvider,
+  };
 
   return (
-    <div className="flex flex-col justify-center w-6 flex-shrink-0">
-      {Array.from({ length: pairCount }).map((_, i) => (
-        <div key={i} className="flex-1 flex flex-col">
-          {/* Top half — horizontal stub + vertical down */}
-          <div
-            className={`flex-1 ${
-              isLtr
-                ? "border-r-2 border-b-2 rounded-br"
-                : "border-l-2 border-b-2 rounded-bl"
-            } border-[#BFD4E4]`}
-          />
-          {/* Bottom half — horizontal stub + vertical up */}
-          <div
-            className={`flex-1 ${
-              isLtr
-                ? "border-r-2 border-t-2 rounded-tr"
-                : "border-l-2 border-t-2 rounded-tl"
-            } border-[#BFD4E4]`}
-          />
-        </div>
-      ))}
+    <BracketGame
+      gameId={game.id}
+      team1={team1}
+      team2={team2}
+      pickedTeamId={userPicks.get(game.id)}
+      onPick={onPick}
+      disabled={disabled}
+      result={result}
+      direction={direction}
+      playInTeams={playInTeams}
+      gameInfo={gameInfo}
+    />
+  );
+}
+
+/** Connector drawn between two feeder games and the next round game */
+function PairConnector({ direction }: { direction: "ltr" | "rtl" }) {
+  const isLtr = direction === "ltr";
+  const bc = "#BFD4E4";
+  const borderSide = isLtr ? "borderRight" : "borderLeft";
+  const b = `2px solid ${bc}`;
+
+  return (
+    <div
+      className={`flex ${isLtr ? "flex-row" : "flex-row-reverse"} flex-shrink-0 w-8`}
+      style={{ height: "100%" }}
+    >
+      {/* Merge bracket: 1:2:1 ratio for top-pad : vertical : bottom-pad */}
+      <div className="flex-1 flex flex-col" style={{ height: "100%" }}>
+        {/* Top pad — aligns with top half of game 1 */}
+        <div style={{ flex: 1 }} />
+        {/* Horizontal stub at game 1 center */}
+        <div style={{ height: 0, borderBottom: b }} />
+        {/* Vertical line from game 1 center to game 2 center */}
+        <div style={{ flex: 2, [borderSide]: b }} />
+        {/* Horizontal stub at game 2 center */}
+        <div style={{ height: 0, borderBottom: b }} />
+        {/* Bottom pad — aligns with bottom half of game 2 */}
+        <div style={{ flex: 1 }} />
+      </div>
+      {/* Output horizontal line at midpoint */}
+      <div className="flex-1 flex items-center">
+        <div className="w-full h-0" style={{ borderTop: b }} />
+      </div>
     </div>
   );
 }
@@ -107,59 +157,63 @@ export default function BracketRegion({
 
   const roundNumbers = Array.from(rounds.keys()).sort((a, b) => a - b);
 
-  function renderGameCard(game: GameData) {
-    const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
-    const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
+  // Group games into pairs for each round
+  function pairUp(gameList: GameData[]): [GameData, GameData][] {
+    const pairs: [GameData, GameData][] = [];
+    for (let i = 0; i < gameList.length; i += 2) {
+      pairs.push([gameList[i], gameList[i + 1]]);
+    }
+    return pairs;
+  }
 
-    const result: GameResult | undefined =
-      game.status !== "scheduled"
-        ? {
-            winnerTeamId: game.winnerTeamId,
-            team1Score: game.team1Score,
-            team2Score: game.team2Score,
-            status: game.status,
-          }
-        : undefined;
+  // Recursively build the bracket tree from right-to-left (later rounds to earlier)
+  // For each game in a later round, render its two feeder games + connector + itself
+  function renderRoundColumn(roundIdx: number): React.ReactNode {
+    const round = roundNumbers[roundIdx];
+    const roundGames = rounds.get(round) || [];
 
-    let playInTeams = null;
-    if (game.playInTeams) {
-      try {
-        playInTeams = JSON.parse(game.playInTeams);
-      } catch {}
+    if (roundIdx === 0) {
+      // Base case: R1 games, render pairs with gap
+      const pairs = pairUp(roundGames);
+      return (
+        <div className="flex flex-col gap-4 justify-center">
+          {pairs.map((pair, pi) => (
+            <div key={pi} className="flex flex-col gap-2">
+              {pair.map((game) => (
+                <div key={game.id}>
+                  {renderGameCard(game, teams, userPicks, onPick, disabled, direction)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
     }
 
-    const gameInfo: GameInfo = {
-      startTime: game.startTime,
-      venue: game.venue,
-      broadcast: game.broadcast,
-      round: game.round,
-      region: game.region,
-      gameId: game.id,
-      spreadLine: game.spreadLine,
-      spreadDetails: game.spreadDetails,
-      moneylineTeam1: game.moneylineTeam1,
-      moneylineTeam2: game.moneylineTeam2,
-      overUnder: game.overUnder,
-      oddsProvider: game.oddsProvider,
-    };
-
+    // For later rounds, render each game with its connector and feeder column
     return (
-      <BracketGame
-        gameId={game.id}
-        team1={team1}
-        team2={team2}
-        pickedTeamId={userPicks.get(game.id)}
-        onPick={onPick}
-        disabled={disabled}
-        result={result}
-        direction={direction}
-        playInTeams={playInTeams}
-        gameInfo={gameInfo}
-      />
+      <div className="flex flex-col justify-center">
+        {roundGames.map((game, gi) => (
+          <div
+            key={game.id}
+            className={`flex-1 flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} items-stretch`}
+          >
+            {/* Connector from feeder pair */}
+            <PairConnector direction={direction} />
+            {/* This game */}
+            <div className="flex items-center">
+              {renderGameCard(game, teams, userPicks, onPick, disabled, direction)}
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
 
-  // Build the columns: round, connector, round, connector, ...
+  // Build columns: R1 | conn | R2 | conn | R3 | conn | R4
+  // But instead of separate columns, we nest: each later round wraps around the previous
+  // Actually, let's keep the flat column approach but fix the connectors
+
   const columns: React.ReactNode[] = [];
 
   for (let ri = 0; ri < roundNumbers.length; ri++) {
@@ -167,51 +221,75 @@ export default function BracketRegion({
     const roundGames = rounds.get(round) || [];
 
     // Round column
-    columns.push(
-      <div
-        key={`round-${round}`}
-        className={`flex flex-col ${round === 1 ? "gap-2" : ""} justify-center`}
-      >
-        {roundGames.map((game) => {
-          if (round > 1) {
-            return (
-              <div key={game.id} className="flex-1 flex items-center">
-                {renderGameCard(game)}
+    if (round === 1) {
+      // R1: render games in pairs with gap-4 between pairs, gap-2 within pairs
+      // Include the R1→R2 connector INSIDE each pair wrapper so heights match
+      const pairs = pairUp(roundGames);
+      const hasNextRound = ri < roundNumbers.length - 1;
+      columns.push(
+        <div key={`round-${round}`} className="flex flex-col gap-4 justify-center flex-shrink-0">
+          {pairs.map((pair, pi) => (
+            <div key={pi} className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"}`}>
+              <div className="flex flex-col gap-2">
+                {pair.map((game) => (
+                  <div key={game.id}>
+                    {renderGameCard(game, teams, userPicks, onPick, disabled, direction)}
+                  </div>
+                ))}
               </div>
-            );
-          }
-          return (
-            <div key={game.id}>
-              {renderGameCard(game)}
+              {hasNextRound && <PairConnector direction={direction} />}
             </div>
-          );
-        })}
-      </div>
-    );
+          ))}
+        </div>
+      );
+      // Skip the separate connector column for R1 since it's now inline
+      if (hasNextRound) ri; // connector already rendered above
+    } else {
+      // Later rounds: games flex-1 centered
+      columns.push(
+        <div key={`round-${round}`} className="flex flex-col justify-center flex-shrink-0">
+          {roundGames.map((game) => (
+            <div key={game.id} className="flex-1 flex items-center">
+              {renderGameCard(game, teams, userPicks, onPick, disabled, direction)}
+            </div>
+          ))}
+        </div>
+      );
+    }
 
-    // Connector column (between this round and the next)
+    // Connector column between this round and the next
     if (ri < roundNumbers.length - 1) {
       const pairCount = roundGames.length / 2;
-      columns.push(
-        <BracketConnectors
-          key={`conn-${round}`}
-          pairCount={pairCount}
-          direction={direction}
-        />
-      );
+
+      if (round === 1) {
+        // R1→R2 connector is rendered inline with game pairs above — skip
+      } else {
+        // Later rounds: flex-1 per connector, stretch to fill
+        columns.push(
+          <div key={`conn-${round}`} className="flex flex-col justify-center flex-shrink-0">
+            {Array.from({ length: pairCount }).map((_, pi) => (
+              <div key={pi} className="flex-1 flex">
+                <PairConnector direction={direction} />
+              </div>
+            ))}
+          </div>
+        );
+      }
     }
   }
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-lg font-extrabold text-[#1B365D] mb-3 uppercase tracking-wider"
+      <h3
+        className="text-lg font-extrabold text-[#1B365D] mb-3 uppercase tracking-wider"
         style={{ textAlign: direction === "rtl" ? "right" : "left" }}
       >
         {regionName}
       </h3>
 
-      {/* Games */}
-      <div className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} gap-0 items-stretch`}>
+      <div
+        className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} items-stretch`}
+      >
         {columns}
       </div>
     </div>
