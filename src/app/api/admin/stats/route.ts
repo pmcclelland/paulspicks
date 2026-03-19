@@ -13,23 +13,21 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const teamCount = db.select({ count: sql<number>`count(*)` }).from(teams).all()[0].count;
-    const gameCount = db.select({ count: sql<number>`count(*)` }).from(games).all()[0].count;
-    const userCount = db.select({ count: sql<number>`count(*)` }).from(users).all()[0].count;
-    const pickCount = db.select({ count: sql<number>`count(*)` }).from(picks).all()[0].count;
+    const teamCount = (await db.select({ count: sql<number>`count(*)` }).from(teams))[0].count;
+    const gameCount = (await db.select({ count: sql<number>`count(*)` }).from(games))[0].count;
+    const userCount = (await db.select({ count: sql<number>`count(*)` }).from(users))[0].count;
+    const pickCount = (await db.select({ count: sql<number>`count(*)` }).from(picks))[0].count;
 
-    const lockedState = db
+    const lockedState = await db
       .select()
       .from(appState)
-      .where(eq(appState.key, "picks_locked"))
-      .all();
+      .where(eq(appState.key, "picks_locked"));
     const locked = lockedState.length > 0 && lockedState[0].value === "true";
 
-    const refreshState = db
+    const refreshState = await db
       .select()
       .from(appState)
-      .where(eq(appState.key, "last_refresh"))
-      .all();
+      .where(eq(appState.key, "last_refresh"));
     const lastRefresh = refreshState.length > 0 ? refreshState[0].value : null;
 
     return NextResponse.json({

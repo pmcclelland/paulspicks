@@ -9,13 +9,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     // Get all tournament games from DB
-    const allGames = db
+    const allGames = await db
       .select()
       .from(games)
-      .orderBy(asc(games.round), asc(games.startTime))
-      .all();
+      .orderBy(asc(games.round), asc(games.startTime));
 
-    const allTeams = db.select().from(teams).all();
+    const allTeams = await db.select().from(teams);
     const teamMap = new Map(allTeams.map((t) => [t.id, t]));
 
     const gamesWithTeams = allGames.map((game) => ({

@@ -25,25 +25,22 @@ export async function GET() {
 
     const userId = parseInt(session.user.id);
 
-    const allGames = db
+    const allGames = await db
       .select()
       .from(games)
-      .orderBy(asc(games.round), asc(games.gameIndex))
-      .all();
+      .orderBy(asc(games.round), asc(games.gameIndex));
 
-    const allTeams = db.select().from(teams).all();
+    const allTeams = await db.select().from(teams);
 
-    const userPicks = db
+    const userPicks = await db
       .select()
       .from(picks)
-      .where(eq(picks.userId, userId))
-      .all();
+      .where(eq(picks.userId, userId));
 
-    const lockedState = db
+    const lockedState = await db
       .select()
       .from(appState)
-      .where(eq(appState.key, "picks_locked"))
-      .all();
+      .where(eq(appState.key, "picks_locked"));
 
     const locked = lockedState.length > 0 && lockedState[0].value === "true";
 
@@ -73,11 +70,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const lockedState = db
+    const lockedState = await db
       .select()
       .from(appState)
-      .where(eq(appState.key, "picks_locked"))
-      .all();
+      .where(eq(appState.key, "picks_locked"));
 
     if (lockedState.length > 0 && lockedState[0].value === "true") {
       return NextResponse.json(
@@ -98,16 +94,15 @@ export async function POST(request: Request) {
       );
     }
 
-    db.delete(picks).where(eq(picks.userId, userId)).run();
-    db.insert(picks)
+    await db.delete(picks).where(eq(picks.userId, userId));
+    await db.insert(picks)
       .values(
         userPicks.map((p) => ({
           userId,
           gameId: p.gameId,
           pickedTeamId: p.pickedTeamId,
         }))
-      )
-      .run();
+      );
 
     return NextResponse.json({ message: "Bracket saved" });
   } catch (error) {

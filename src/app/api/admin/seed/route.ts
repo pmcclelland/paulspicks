@@ -43,12 +43,12 @@ export async function POST() {
       );
 
       // Clear existing data for a clean seed
-      db.delete(games).run();
-      db.delete(teams).run();
+      await db.delete(games);
+      await db.delete(teams);
 
       // Insert all 64 sample teams
       for (const team of SAMPLE_TEAMS) {
-        db.insert(teams)
+        await db.insert(teams)
           .values({
             espnTeamId: `sample-${team.abbreviation}`,
             name: team.name,
@@ -56,21 +56,19 @@ export async function POST() {
             seed: team.seed,
             region: team.region,
             logoUrl: null,
-          })
-          .run();
+          });
         teamsCount++;
       }
     } else {
       // Use ESPN data — upsert teams
       for (const team of parsed.teams) {
-        const existing = db
+        const existing = await db
           .select()
           .from(teams)
-          .where(eq(teams.espnTeamId, team.espnTeamId))
-          .all();
+          .where(eq(teams.espnTeamId, team.espnTeamId));
 
         if (existing.length > 0) {
-          db.update(teams)
+          await db.update(teams)
             .set({
               name: team.name,
               abbreviation: team.abbreviation,
@@ -78,17 +76,16 @@ export async function POST() {
               region: team.region,
               logoUrl: team.logoUrl,
             })
-            .where(eq(teams.espnTeamId, team.espnTeamId))
-            .run();
+            .where(eq(teams.espnTeamId, team.espnTeamId));
         } else {
-          db.insert(teams).values(team).run();
+          await db.insert(teams).values(team);
         }
         teamsCount++;
       }
     }
 
     // Build team lookup maps
-    const allTeams = db.select().from(teams).all();
+    const allTeams = await db.select().from(teams);
     const espnToDbId = new Map<string, number>();
     const teamByRegionSeed = new Map<string, number>();
     for (const t of allTeams) {
@@ -151,11 +148,10 @@ export async function POST() {
     for (const config of roundConfigs) {
       for (const region of config.regions) {
         for (let idx = 0; idx < config.gamesPerRegion; idx++) {
-          const existing = db
+          const existingRows = (await db
             .select()
             .from(games)
-            .where(eq(games.round, config.round))
-            .all()
+            .where(eq(games.round, config.round)))
             .filter((r) => r.region === region && r.gameIndex === idx);
 
           const espnKey = `${config.round}-${region}-${idx}`;
@@ -248,13 +244,12 @@ export async function POST() {
             playInTeams: playInTeamsJson,
           };
 
-          if (existing.length > 0) {
-            db.update(games)
+          if (existingRows.length > 0) {
+            await db.update(games)
               .set(baseData)
-              .where(eq(games.id, existing[0].id))
-              .run();
+              .where(eq(games.id, existingRows[0].id));
           } else {
-            db.insert(games).values(baseData).run();
+            await db.insert(games).values(baseData);
           }
           gamesCount++;
         }

@@ -12,11 +12,10 @@ const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
  * Returns true if a refresh was performed.
  */
 export async function refreshScoresIfStale(): Promise<boolean> {
-  const refreshState = db
+  const refreshState = await db
     .select()
     .from(appState)
-    .where(eq(appState.key, "last_refresh"))
-    .all();
+    .where(eq(appState.key, "last_refresh"));
 
   const lastRefresh = refreshState.length > 0 ? refreshState[0].value : null;
   if (lastRefresh) {
@@ -27,11 +26,10 @@ export async function refreshScoresIfStale(): Promise<boolean> {
   }
 
   // Check if there are any games that could have live scores
-  const activeGames = db
+  const allGameRows = await db
     .select()
-    .from(games)
-    .all()
-    .filter((g) => g.status === "in_progress" || g.status === "scheduled");
+    .from(games);
+  const activeGames = allGameRows.filter((g) => g.status === "in_progress" || g.status === "scheduled");
 
   if (activeGames.length === 0) {
     return false; // No games to update
@@ -66,13 +64,13 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
   let updatedGames = 0;
   let scoredPicks = 0;
 
-  const allTeams = db.select().from(teams).all();
+  const allTeams = await db.select().from(teams);
   const espnToDbId = new Map<string, number>();
   for (const t of allTeams) {
     espnToDbId.set(t.espnTeamId, t.id);
   }
 
-  const allGames = db.select().from(games).all();
+  const allGames = await db.select().from(games);
   const gameByRoundRegionIndex = new Map<string, (typeof allGames)[0]>();
   for (const g of allGames) {
     gameByRoundRegionIndex.set(`${g.round}-${g.region}-${g.gameIndex}`, g);
@@ -95,7 +93,7 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
       ? espnToDbId.get(event.winnerEspnTeamId) ?? null
       : null;
 
-    db.update(games)
+    await db.update(games)
       .set({
         team1Id: team1DbId,
         team2Id: team2DbId,
@@ -108,29 +106,26 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         venue: event.venue || dbGame.venue,
         broadcast: event.broadcast || dbGame.broadcast,
       })
-      .where(eq(games.id, dbGame.id))
-      .run();
+      .where(eq(games.id, dbGame.id));
     updatedGames++;
 
     const isNowComplete = event.status === "final" && !wasCompleted;
     if (isNowComplete && winnerDbId) {
-      const gamePicks = db
+      const gamePicks = await db
         .select()
         .from(picks)
-        .where(eq(picks.gameId, dbGame.id))
-        .all();
+        .where(eq(picks.gameId, dbGame.id));
 
       const pointsForRound = POINTS_PER_ROUND[dbGame.round] || 0;
 
       for (const pick of gamePicks) {
         const isCorrect = pick.pickedTeamId === winnerDbId;
-        db.update(picks)
+        await db.update(picks)
           .set({
             isCorrect: isCorrect ? 1 : 0,
             pointsEarned: isCorrect ? pointsForRound : 0,
           })
-          .where(eq(picks.id, pick.id))
-          .run();
+          .where(eq(picks.id, pick.id));
         scoredPicks++;
       }
 
@@ -151,10 +146,9 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
               slot === "team1"
                 ? { team1Id: winnerDbId }
                 : { team2Id: winnerDbId };
-            db.update(games)
+            await db.update(games)
               .set(updateField)
-              .where(eq(games.id, nextGame.id))
-              .run();
+              .where(eq(games.id, nextGame.id));
           }
         }
       }
@@ -163,21 +157,18 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
 
   // Update last_refresh timestamp
   const now = new Date().toISOString();
-  const existing = db
+  const existing = await db
     .select()
     .from(appState)
-    .where(eq(appState.key, "last_refresh"))
-    .all();
+    .where(eq(appState.key, "last_refresh"));
 
   if (existing.length > 0) {
-    db.update(appState)
+    await db.update(appState)
       .set({ value: now })
-      .where(eq(appState.key, "last_refresh"))
-      .run();
+      .where(eq(appState.key, "last_refresh"));
   } else {
-    db.insert(appState)
-      .values({ key: "last_refresh", value: now })
-      .run();
+    await db.insert(appState)
+      .values({ key: "last_refresh", value: now });
   }
 
   return { updatedGames, scoredPicks };

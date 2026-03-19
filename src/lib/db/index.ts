@@ -1,22 +1,10 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
-import path from "path";
-import fs from "fs";
 
-const dbPath = path.join(process.cwd(), "data", "paulspicks.db");
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-const sqlite = new Database(dbPath);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
-export const db = drizzle(sqlite, { schema });
-
-// Auto-run migrations on startup
-try {
-  migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
-} catch (e) {
-  // Migrations may already be applied
-  console.log("Migration check:", (e as Error).message);
-}
+export const db = drizzle(client, { schema });
