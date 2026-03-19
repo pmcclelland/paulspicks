@@ -552,7 +552,9 @@ export default function BracketView({
 
             {/* ── Right half: headers + regions ── */}
             <div className="flex flex-col flex-shrink-0">
-              {/* Round headers (RTL — E8 nearest center, R1 on far right) */}
+              {/* Round headers (RTL — R1 rightmost, E8 leftmost in flex-row-reverse)
+                   Each wrapper: pill then spacer. Spacer goes to left of pill visually
+                   (between this round and the next toward center). E8 has no spacer. */}
               <div className="flex flex-row-reverse mb-4">
                 {[
                   { name: "ROUND 1", dates: "Mar 19 – 20" },
@@ -560,8 +562,7 @@ export default function BracketView({
                   { name: "SWEET 16", dates: "Mar 26 – 27" },
                   { name: "ELITE 8", dates: "Mar 28 – 29" },
                 ].map((h, i) => (
-                  <div key={h.name} className="flex items-center">
-                    {i > 0 && <div className="w-8 flex-shrink-0" />}
+                  <div key={h.name} className="flex flex-row-reverse items-center">
                     <div className="w-56 flex-shrink-0">
                       <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
                         <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
@@ -572,7 +573,7 @@ export default function BracketView({
                         </div>
                       </div>
                     </div>
-                    {i === 0 && <div className="w-8 flex-shrink-0" />}
+                    {i < 3 && <div className="w-8 flex-shrink-0" />}
                   </div>
                 ))}
               </div>
