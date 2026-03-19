@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +23,28 @@ export default function BracketView({
   initialPicks,
   locked,
 }: BracketViewProps) {
+  const STORAGE_KEY = "paulspicks-bracket-draft";
+
   const [userPicks, setUserPicks] = useState<Map<number, number>>(() => {
+    // Check localStorage for unsaved draft picks
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed: [number, number][] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const map = new Map<number, number>();
+            for (const [gameId, teamId] of parsed) {
+              map.set(gameId, teamId);
+            }
+            return map;
+          }
+        }
+      } catch {
+        // Ignore corrupt localStorage
+      }
+    }
+    // Fall back to server-saved picks
     const map = new Map<number, number>();
     for (const pick of initialPicks) {
       map.set(pick.gameId, pick.pickedTeamId);
@@ -31,7 +52,25 @@ export default function BracketView({
     return map;
   });
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(STORAGE_KEY) !== null;
+    } catch {
+      return false;
+    }
+  });
+
+  // Persist picks to localStorage whenever they change
+  useEffect(() => {
+    if (!dirty) return;
+    try {
+      const entries = Array.from(userPicks.entries());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      // Storage full or unavailable
+    }
+  }, [userPicks, dirty]);
 
   // Build team lookup map
   const teamsMap = useMemo(() => {
@@ -255,6 +294,7 @@ export default function BracketView({
 
       toast.success("Bracket saved successfully!");
       setDirty(false);
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
     } catch {
       toast.error("Failed to save bracket. Please try again.");
     } finally {
