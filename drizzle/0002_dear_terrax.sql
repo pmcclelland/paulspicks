@@ -1,0 +1,1 @@
+ALTER TABLE `games` ADD `status_detail` text;

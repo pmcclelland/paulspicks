@@ -15,6 +15,13 @@
       "when": 1773890269557,
       "tag": "0001_white_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773890947967,
+      "tag": "0002_dear_terrax",
+      "breakpoints": true
     }
   ]
 }

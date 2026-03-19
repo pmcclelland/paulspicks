@@ -3,11 +3,19 @@ import { db } from "@/lib/db";
 import { games, teams } from "@/lib/db/schema";
 import { asc } from "drizzle-orm";
 import { fetchScoreboard, parseTournamentData, TOURNAMENT_DATES } from "@/lib/espn";
+import { refreshScoresIfStale } from "@/lib/refresh-scores";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    // Auto-refresh scores from ESPN if stale
+    try {
+      await refreshScoresIfStale();
+    } catch (e) {
+      console.warn("Scores auto-refresh failed:", e);
+    }
+
     // Get all tournament games from DB
     const allGames = await db
       .select()
@@ -45,6 +53,7 @@ export async function GET() {
               team1Score: g.team1Score,
               team2Score: g.team2Score,
               winnerTeamId: null,
+              statusDetail: g.statusDetail,
               spreadLine: g.spreadLine,
               spreadDetails: g.spreadDetails,
               moneylineTeam1: g.moneylineTeam1,

@@ -105,6 +105,7 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         startTime: event.startTime || dbGame.startTime,
         venue: event.venue || dbGame.venue,
         broadcast: event.broadcast || dbGame.broadcast,
+        statusDetail: event.statusDetail,
         spreadLine: event.spreadLine ?? dbGame.spreadLine,
         spreadDetails: event.spreadDetails ?? dbGame.spreadDetails,
         moneylineTeam1: event.moneylineTeam1 ?? dbGame.moneylineTeam1,

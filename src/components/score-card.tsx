@@ -27,16 +27,17 @@ type ScoreCardProps = {
   team2Id?: number;
   spreadDetails?: string | null;
   overUnder?: string | null;
+  statusDetail?: string | null;
 };
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, statusDetail?: string | null) {
   switch (status) {
     case "final":
       return <Badge variant="secondary">Final</Badge>;
     case "in_progress":
       return (
         <Badge className="bg-green-600 text-white hover:bg-green-700">
-          Live
+          {statusDetail || "Live"}
         </Badge>
       );
     case "scheduled":
@@ -65,6 +66,7 @@ export default function ScoreCard({
   team2Id,
   spreadDetails,
   overUnder,
+  statusDetail,
 }: ScoreCardProps) {
   const isTeam1Winner = winnerTeamId !== null && winnerTeamId === team1Id;
   const isTeam2Winner = winnerTeamId !== null && winnerTeamId === team2Id;
@@ -73,7 +75,7 @@ export default function ScoreCard({
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          {getStatusBadge(status)}
+          {getStatusBadge(status, statusDetail)}
           {startTime && status === "scheduled" && (
             <span className="text-xs text-muted-foreground">
               {new Date(startTime).toLocaleString(undefined, {

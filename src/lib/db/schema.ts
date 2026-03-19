@@ -36,6 +36,7 @@ export const games = sqliteTable("games", {
   venue: text("venue"),
   broadcast: text("broadcast"),
   playInTeams: text("play_in_teams"), // JSON: [{id, name, abbreviation, seed, logoUrl},...] for First Four slots
+  statusDetail: text("status_detail"), // e.g. "1st - 12:34", "Halftime"
   // Betting odds
   spreadLine: text("spread_line"),
   spreadDetails: text("spread_details"),

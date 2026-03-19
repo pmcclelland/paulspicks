@@ -17,6 +17,7 @@ type GameWithTeams = {
   venue: string | null;
   broadcast: string | null;
   winnerTeamId: number | null;
+  statusDetail: string | null;
   spreadDetails: string | null;
   overUnder: string | null;
   team1: {
@@ -151,6 +152,7 @@ export default function ScoresPage() {
                       team2Id={game.team2Id ?? undefined}
                       spreadDetails={game.spreadDetails}
                       overUnder={game.overUnder}
+                      statusDetail={game.statusDetail}
                     />
                   ))}
                 </div>

@@ -26,6 +26,7 @@ export type ParsedGame = {
   startTime: string | null;
   venue: string | null;
   broadcast: string | null;
+  statusDetail: string | null;
   // Odds
   spreadLine: string | null;
   spreadDetails: string | null;
@@ -153,11 +154,13 @@ export function parseTournamentData(events: any[]): {
       gameIndex = regionGameCounters[region][round]++;
     }
 
-    const statusType = competition.status?.type || event.status?.type;
+    const statusObj = competition.status || event.status;
+    const statusType = statusObj?.type || {};
     const status = parseStatus(
       statusType?.state || "pre",
       statusType?.completed || false
     );
+    const statusDetail: string | null = statusType?.shortDetail || null;
 
     let team1: ParsedTeam | null = null;
     let team2: ParsedTeam | null = null;
@@ -252,6 +255,7 @@ export function parseTournamentData(events: any[]): {
       startTime: event.date || null,
       venue,
       broadcast,
+      statusDetail,
       spreadLine,
       spreadDetails,
       moneylineTeam1,
