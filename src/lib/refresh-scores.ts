@@ -1,0 +1,184 @@
+import { db } from "@/lib/db";
+import { games, picks, teams, appState } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { fetchScoreboard, parseTournamentData, TOURNAMENT_DATES } from "@/lib/espn";
+import { getNextGame, getSlotInNextGame, REGIONS } from "@/lib/bracket-utils";
+import { POINTS_PER_ROUND } from "@/lib/scoring";
+
+const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Check if scores are stale and refresh from ESPN if needed.
+ * Returns true if a refresh was performed.
+ */
+export async function refreshScoresIfStale(): Promise<boolean> {
+  const refreshState = db
+    .select()
+    .from(appState)
+    .where(eq(appState.key, "last_refresh"))
+    .all();
+
+  const lastRefresh = refreshState.length > 0 ? refreshState[0].value : null;
+  if (lastRefresh) {
+    const elapsed = Date.now() - new Date(lastRefresh).getTime();
+    if (elapsed < REFRESH_INTERVAL_MS) {
+      return false; // Not stale
+    }
+  }
+
+  // Check if there are any games that could have live scores
+  const activeGames = db
+    .select()
+    .from(games)
+    .all()
+    .filter((g) => g.status === "in_progress" || g.status === "scheduled");
+
+  if (activeGames.length === 0) {
+    return false; // No games to update
+  }
+
+  await doRefreshScores();
+  return true;
+}
+
+/**
+ * Actually refresh scores from ESPN. Called by auto-refresh and admin endpoint.
+ */
+export async function doRefreshScores(): Promise<{ updatedGames: number; scoredPicks: number }> {
+  const allEvents: any[] = [];
+  for (const round of Object.keys(TOURNAMENT_DATES)) {
+    const r = parseInt(round);
+    if (r === 0) continue; // Skip First Four dates for score refresh
+    const dates = TOURNAMENT_DATES[r];
+    for (const dateStr of dates) {
+      try {
+        const data = await fetchScoreboard(dateStr);
+        if (data.events) {
+          allEvents.push(...data.events);
+        }
+      } catch (e) {
+        // Skip dates with no data
+      }
+    }
+  }
+
+  const parsed = parseTournamentData(allEvents);
+  let updatedGames = 0;
+  let scoredPicks = 0;
+
+  const allTeams = db.select().from(teams).all();
+  const espnToDbId = new Map<string, number>();
+  for (const t of allTeams) {
+    espnToDbId.set(t.espnTeamId, t.id);
+  }
+
+  const allGames = db.select().from(games).all();
+  const gameByRoundRegionIndex = new Map<string, (typeof allGames)[0]>();
+  for (const g of allGames) {
+    gameByRoundRegionIndex.set(`${g.round}-${g.region}-${g.gameIndex}`, g);
+  }
+
+  for (const event of parsed.games) {
+    if (event.round === 0) continue; // Skip First Four
+    const key = `${event.round}-${event.region}-${event.gameIndex}`;
+    const dbGame = gameByRoundRegionIndex.get(key);
+    if (!dbGame) continue;
+
+    const wasCompleted = dbGame.status === "final";
+    const team1DbId = event.team1
+      ? espnToDbId.get(event.team1.espnTeamId) ?? dbGame.team1Id
+      : dbGame.team1Id;
+    const team2DbId = event.team2
+      ? espnToDbId.get(event.team2.espnTeamId) ?? dbGame.team2Id
+      : dbGame.team2Id;
+    const winnerDbId = event.winnerEspnTeamId
+      ? espnToDbId.get(event.winnerEspnTeamId) ?? null
+      : null;
+
+    db.update(games)
+      .set({
+        team1Id: team1DbId,
+        team2Id: team2DbId,
+        team1Score: event.team1Score,
+        team2Score: event.team2Score,
+        status: event.status,
+        winnerTeamId: winnerDbId,
+        espnEventId: event.espnEventId || dbGame.espnEventId,
+        startTime: event.startTime || dbGame.startTime,
+        venue: event.venue || dbGame.venue,
+        broadcast: event.broadcast || dbGame.broadcast,
+      })
+      .where(eq(games.id, dbGame.id))
+      .run();
+    updatedGames++;
+
+    const isNowComplete = event.status === "final" && !wasCompleted;
+    if (isNowComplete && winnerDbId) {
+      const gamePicks = db
+        .select()
+        .from(picks)
+        .where(eq(picks.gameId, dbGame.id))
+        .all();
+
+      const pointsForRound = POINTS_PER_ROUND[dbGame.round] || 0;
+
+      for (const pick of gamePicks) {
+        const isCorrect = pick.pickedTeamId === winnerDbId;
+        db.update(picks)
+          .set({
+            isCorrect: isCorrect ? 1 : 0,
+            pointsEarned: isCorrect ? pointsForRound : 0,
+          })
+          .where(eq(picks.id, pick.id))
+          .run();
+        scoredPicks++;
+      }
+
+      // Advance winner to next round
+      if (dbGame.round < 6) {
+        const nextGameInfo = getNextGame(dbGame.round, dbGame.gameIndex);
+        if (nextGameInfo) {
+          const slot = getSlotInNextGame(dbGame.gameIndex);
+          let nextRegion = dbGame.region;
+          if (nextGameInfo.round >= 5) {
+            nextRegion = "Final Four";
+          }
+          const nextKey = `${nextGameInfo.round}-${nextRegion}-${nextGameInfo.gameIndex}`;
+          const nextGame = gameByRoundRegionIndex.get(nextKey);
+
+          if (nextGame) {
+            const updateField =
+              slot === "team1"
+                ? { team1Id: winnerDbId }
+                : { team2Id: winnerDbId };
+            db.update(games)
+              .set(updateField)
+              .where(eq(games.id, nextGame.id))
+              .run();
+          }
+        }
+      }
+    }
+  }
+
+  // Update last_refresh timestamp
+  const now = new Date().toISOString();
+  const existing = db
+    .select()
+    .from(appState)
+    .where(eq(appState.key, "last_refresh"))
+    .all();
+
+  if (existing.length > 0) {
+    db.update(appState)
+      .set({ value: now })
+      .where(eq(appState.key, "last_refresh"))
+      .run();
+  } else {
+    db.insert(appState)
+      .values({ key: "last_refresh", value: now })
+      .run();
+  }
+
+  return { updatedGames, scoredPicks };
+}

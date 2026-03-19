@@ -1,0 +1,126 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import BracketView from "@/components/bracket-view";
+
+export default function BracketPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [bracketData, setBracketData] = useState<{
+    games: any[];
+    teams: any[];
+    picks: any[];
+    locked: boolean;
+    hasLiveGames: boolean;
+  } | null>(null);
+  const initialPicksLoaded = useRef(false);
+
+  const fetchBracket = useCallback(async (isRefresh = false) => {
+    try {
+      const res = await fetch("/api/bracket");
+      if (!res.ok) {
+        if (!isRefresh) {
+          const data = await res.json();
+          setError(data.error || "Failed to load bracket.");
+        }
+        return;
+      }
+      const data = await res.json();
+
+      if (isRefresh && initialPicksLoaded.current) {
+        // On refresh, only update games (scores/status) and teams — preserve picks
+        setBracketData((prev) =>
+          prev
+            ? { ...prev, games: data.games, teams: data.teams, locked: data.locked, hasLiveGames: data.hasLiveGames }
+            : data
+        );
+      } else {
+        setBracketData(data);
+        initialPicksLoaded.current = true;
+      }
+    } catch {
+      if (!isRefresh) {
+        setError("Failed to load bracket. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
+
+    if (status === "authenticated") {
+      fetchBracket(false);
+    }
+  }, [status, router, fetchBracket]);
+
+  // Poll for live score updates every 30 seconds
+  useEffect(() => {
+    if (!bracketData) return;
+
+    const hasActiveGames = bracketData.games.some(
+      (g: any) => g.status === "in_progress" || g.status === "final"
+    );
+
+    // Poll more frequently during live games, less often otherwise
+    const interval = hasActiveGames ? 30_000 : 120_000;
+
+    const timer = setInterval(() => {
+      fetchBracket(true);
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [bracketData, fetchBracket]);
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#F4793B] border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading bracket...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="text-center">
+          <p className="text-destructive mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError("");
+              setLoading(true);
+              fetchBracket(false);
+            }}
+            className="text-sm text-[#F4793B] hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!bracketData) return null;
+
+  return (
+    <div className="py-6">
+      <BracketView
+        games={bracketData.games}
+        teams={bracketData.teams}
+        initialPicks={bracketData.picks}
+        locked={bracketData.locked}
+      />
+    </div>
+  );
+}
