@@ -210,9 +210,6 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                       {badges.length > 0 && (
                         <BadgeIcons badges={badges} userId={entry.userId} />
                       )}
-                      <span className="ml-auto text-[10px] text-[#BFD4E4] group-hover:text-[#5A7A99] transition-colors hidden lg:inline">
-                        View bracket
-                      </span>
                     </span>
                   </TableCell>
                   <TableCell>
