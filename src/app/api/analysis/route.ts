@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { games, teams } from "@/lib/db/schema";
+import { games, teams, kenpomRankings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { generateMatchupAnalysis } from "@/lib/analysis";
+import { generateMatchupAnalysis, type KenpomStats } from "@/lib/analysis";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +59,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Look up KenPom data for both teams
+    const allKenpom = await db.select().from(kenpomRankings);
+
+    function findKenpom(teamName: string): KenpomStats {
+      const lower = teamName.toLowerCase();
+      const match = allKenpom.find(
+        (k) =>
+          k.teamName.toLowerCase() === lower ||
+          lower.includes(k.teamName.toLowerCase()) ||
+          k.teamName.toLowerCase().includes(lower)
+      );
+      if (!match) return null;
+      return {
+        rank: match.rank,
+        adjEM: match.adjEM!,
+        adjO: match.adjO!,
+        adjORank: match.adjORank!,
+        adjD: match.adjD!,
+        adjDRank: match.adjDRank!,
+      };
+    }
+
+    const kenpom1 = findKenpom(team1.name);
+    const kenpom2 = findKenpom(team2.name);
+
     const analysis = await generateMatchupAnalysis(
       { name: team1.name, seed: team1.seed, region: team1.region },
       { name: team2.name, seed: team2.seed, region: team2.region },
@@ -68,7 +93,9 @@ export async function GET(request: NextRequest) {
         moneyline2: game.moneylineTeam2,
         overUnder: game.overUnder,
       },
-      game.round
+      game.round,
+      kenpom1,
+      kenpom2
     );
 
     const now = new Date().toISOString();

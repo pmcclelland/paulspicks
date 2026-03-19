@@ -218,6 +218,70 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+      {/* KenPom Import */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>KenPom Rankings</CardTitle>
+          <CardDescription>
+            Import KenPom efficiency ratings. Paste JSON from the browser console
+            bookmarklet, or use the bundled seed data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() =>
+                handleAction("/api/admin/kenpom/seed", "Seed KenPom")
+              }
+              disabled={actionLoading !== null}
+              className="bg-[#1B365D] hover:bg-[#152B4D] text-white"
+            >
+              {actionLoading === "Seed KenPom"
+                ? "Importing..."
+                : "Import Bundled Data"}
+            </Button>
+          </div>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+              Manual JSON import
+            </summary>
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Go to kenpom.com, open browser console, and run the bookmarklet
+                below. Then paste the output JSON here.
+              </p>
+              <pre className="text-[10px] bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+{`(()=>{const r=document.querySelectorAll('#ratings-table tbody tr');const t=[];for(const w of r){const c=w.querySelectorAll('td');if(c.length<21)continue;const k=c[0]?.textContent?.trim();if(!k||isNaN(+k))continue;const a=c[1]?.querySelector('a');const s=c[1]?.querySelector('.seed');t.push({rank:+k,teamName:a?.textContent?.trim()||'',seed:s?+s.textContent.trim():null,conf:c[2]?.textContent?.trim(),record:c[3]?.textContent?.trim(),adjEM:+c[4]?.textContent?.trim(),adjO:+c[5]?.textContent?.trim(),adjORank:+c[6]?.textContent?.trim(),adjD:+c[7]?.textContent?.trim(),adjDRank:+c[8]?.textContent?.trim(),adjT:+c[9]?.textContent?.trim(),adjTRank:+c[10]?.textContent?.trim(),luck:+c[11]?.textContent?.trim(),luckRank:+c[12]?.textContent?.trim(),sosEM:+c[13]?.textContent?.trim(),sosEMRank:+c[14]?.textContent?.trim(),sosO:+c[15]?.textContent?.trim(),sosORank:+c[16]?.textContent?.trim(),sosD:+c[17]?.textContent?.trim(),sosDRank:+c[18]?.textContent?.trim(),ncsos:+c[19]?.textContent?.trim(),ncsosRank:+c[20]?.textContent?.trim()});}copy(JSON.stringify({teams:t}));alert(t.length+' teams copied to clipboard!');})()`}
+              </pre>
+              <textarea
+                id="kenpom-json"
+                className="w-full h-32 text-xs font-mono border rounded p-2"
+                placeholder='Paste JSON here: {"teams": [...]}'
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={actionLoading !== null}
+                onClick={async () => {
+                  const el = document.getElementById("kenpom-json") as HTMLTextAreaElement;
+                  try {
+                    const data = JSON.parse(el.value);
+                    if (!data.teams?.length) {
+                      toast.error("Invalid JSON — must have a 'teams' array.");
+                      return;
+                    }
+                    await handleAction("/api/admin/kenpom", "Import KenPom JSON", data);
+                  } catch {
+                    toast.error("Invalid JSON format.");
+                  }
+                }}
+              >
+                {actionLoading === "Import KenPom JSON" ? "Importing..." : "Import Pasted JSON"}
+              </Button>
+            </div>
+          </details>
+        </CardContent>
+      </Card>
     </div>
   );
 }

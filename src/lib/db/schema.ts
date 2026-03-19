@@ -66,6 +66,33 @@ export const picks = sqliteTable("picks", {
   uniqueIndex("picks_user_game_unique").on(table.userId, table.gameId),
 ]);
 
+export const kenpomRankings = sqliteTable("kenpom_rankings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  teamName: text("team_name").notNull(),
+  rank: integer("rank").notNull(),
+  seed: integer("seed"),
+  conference: text("conference"),
+  record: text("record"),
+  adjEM: text("adj_em"),        // adjusted efficiency margin
+  adjO: text("adj_o"),          // adjusted offensive efficiency
+  adjORank: integer("adj_o_rank"),
+  adjD: text("adj_d"),          // adjusted defensive efficiency
+  adjDRank: integer("adj_d_rank"),
+  adjT: text("adj_t"),          // adjusted tempo
+  adjTRank: integer("adj_t_rank"),
+  luck: text("luck"),
+  luckRank: integer("luck_rank"),
+  sosEM: text("sos_em"),        // strength of schedule efficiency margin
+  sosEMRank: integer("sos_em_rank"),
+  sosO: text("sos_o"),          // SOS offensive
+  sosORank: integer("sos_o_rank"),
+  sosD: text("sos_d"),          // SOS defensive
+  sosDRank: integer("sos_d_rank"),
+  ncsos: text("ncsos"),         // non-conference SOS
+  ncsosRank: integer("ncsos_rank"),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
 export const appState = sqliteTable("app_state", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
