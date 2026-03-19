@@ -694,15 +694,17 @@ function InfoModal({
                             {team ? schoolName(team.name) : "TBD"}
                           </span>
                         </div>
+                      </div>
+                      <div className="flex flex-col items-end flex-shrink-0">
+                        {score !== null && score !== undefined && (
+                          <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
+                            {score}
+                          </span>
+                        )}
                         {record && (
-                          <div className="text-[11px] text-[#5A7A99] ml-7">{record}</div>
+                          <span className="text-[11px] text-[#5A7A99]">{record}</span>
                         )}
                       </div>
-                      {score !== null && score !== undefined && (
-                        <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
-                          {score}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
