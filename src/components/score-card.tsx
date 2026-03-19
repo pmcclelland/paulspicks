@@ -25,6 +25,8 @@ type ScoreCardProps = {
   winnerTeamId?: number | null;
   team1Id?: number;
   team2Id?: number;
+  spreadDetails?: string | null;
+  overUnder?: string | null;
 };
 
 function getStatusBadge(status: string) {
@@ -61,6 +63,8 @@ export default function ScoreCard({
   winnerTeamId,
   team1Id,
   team2Id,
+  spreadDetails,
+  overUnder,
 }: ScoreCardProps) {
   const isTeam1Winner = winnerTeamId !== null && winnerTeamId === team1Id;
   const isTeam2Winner = winnerTeamId !== null && winnerTeamId === team2Id;
@@ -119,6 +123,14 @@ export default function ScoreCard({
             <span className="font-mono text-lg">{team2Score}</span>
           )}
         </div>
+
+        {/* Odds line for scheduled/in-progress */}
+        {(spreadDetails || overUnder) && status !== "final" && (
+          <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground flex gap-3">
+            {spreadDetails && <span>Spread: {spreadDetails}</span>}
+            {overUnder && <span>O/U {overUnder}</span>}
+          </div>
+        )}
 
         {/* Meta info */}
         {(venue || broadcast) && (

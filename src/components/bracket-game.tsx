@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { PlayInTeam } from "./bracket-region";
+import { fairProbabilities, formatOdds } from "@/lib/odds";
 
 export type TeamData = {
   id: number;
@@ -24,6 +25,13 @@ export type GameInfo = {
   broadcast?: string | null;
   round: number;
   region: string;
+  gameId?: number;
+  spreadLine?: string | null;
+  spreadDetails?: string | null;
+  moneylineTeam1?: string | null;
+  moneylineTeam2?: string | null;
+  overUnder?: string | null;
+  oddsProvider?: string | null;
 };
 
 type BracketGameProps = {
@@ -93,6 +101,110 @@ function PickIcon({
   );
 }
 
+function WinProbabilityBar({
+  team1,
+  team2,
+  gameInfo,
+}: {
+  team1: TeamData | null;
+  team2: TeamData | null;
+  gameInfo: GameInfo;
+}) {
+  if (!gameInfo.moneylineTeam1 || !gameInfo.moneylineTeam2) return null;
+
+  const probs = fairProbabilities(gameInfo.moneylineTeam1, gameInfo.moneylineTeam2);
+  const pct1 = Math.round(probs.team1 * 100);
+  const pct2 = 100 - pct1;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs font-bold">
+        <span className="text-[#1B365D]">{team1 ? schoolName(team1.name) : "Team 1"} {pct1}%</span>
+        <span className="text-[#F4793B]">{team2 ? schoolName(team2.name) : "Team 2"} {pct2}%</span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden">
+        <div className="bg-[#1B365D] transition-all" style={{ width: `${pct1}%` }} />
+        <div className="bg-[#F4793B] transition-all" style={{ width: `${pct2}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function OddsTable({ gameInfo }: { gameInfo: GameInfo }) {
+  const hasOdds = gameInfo.spreadDetails || gameInfo.moneylineTeam1 || gameInfo.overUnder;
+  if (!hasOdds) {
+    return <p className="text-sm text-[#5A7A99] italic">Odds not yet available</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        {gameInfo.spreadDetails && (
+          <>
+            <span className="text-[#5A7A99] font-medium">Spread</span>
+            <span className="text-[#1B365D] font-semibold text-right">{gameInfo.spreadDetails}</span>
+          </>
+        )}
+        {gameInfo.moneylineTeam1 && gameInfo.moneylineTeam2 && (
+          <>
+            <span className="text-[#5A7A99] font-medium">Moneyline</span>
+            <span className="text-[#1B365D] font-semibold text-right">
+              {formatOdds(gameInfo.moneylineTeam1)} / {formatOdds(gameInfo.moneylineTeam2)}
+            </span>
+          </>
+        )}
+        {gameInfo.overUnder && (
+          <>
+            <span className="text-[#5A7A99] font-medium">Over/Under</span>
+            <span className="text-[#1B365D] font-semibold text-right">{gameInfo.overUnder}</span>
+          </>
+        )}
+      </div>
+      {gameInfo.oddsProvider && (
+        <p className="text-[10px] text-[#5A7A99]/60 mt-1">Odds via {gameInfo.oddsProvider}</p>
+      )}
+    </div>
+  );
+}
+
+function AnalysisSection({ gameId }: { gameId?: number }) {
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+
+  useEffect(() => {
+    if (!gameId || fetched) return;
+    setFetched(true);
+    setLoading(true);
+    fetch(`/api/analysis?gameId=${gameId}`)
+      .then((r) => r.json())
+      .then((data) => setAnalysis(data.analysis || null))
+      .catch(() => setAnalysis(null))
+      .finally(() => setLoading(false));
+  }, [gameId, fetched]);
+
+  if (!gameId) return null;
+
+  if (loading) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        <div className="h-3 bg-[#EFF5FA] rounded w-full" />
+        <div className="h-3 bg-[#EFF5FA] rounded w-5/6" />
+        <div className="h-3 bg-[#EFF5FA] rounded w-4/6" />
+      </div>
+    );
+  }
+
+  if (!analysis) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[#BFD4E4]/50">
+      <p className="text-xs font-bold text-[#5A7A99] uppercase tracking-wider mb-1.5">AI Analysis</p>
+      <p className="text-sm text-[#1B365D] leading-relaxed">{analysis}</p>
+    </div>
+  );
+}
+
 function InfoModal({
   open,
   onClose,
@@ -108,6 +220,8 @@ function InfoModal({
   result?: GameResult;
   gameInfo?: GameInfo;
 }) {
+  const [activeTab, setActiveTab] = useState<"matchup" | "odds">("matchup");
+
   if (!open) return null;
 
   const startDate = gameInfo?.startTime ? new Date(gameInfo.startTime) : null;
@@ -135,81 +249,120 @@ function InfoModal({
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-[#BFD4E4]/50">
+          <button
+            className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === "matchup"
+                ? "text-[#1B365D] border-b-2 border-[#F4793B]"
+                : "text-[#5A7A99] hover:text-[#1B365D]"
+            }`}
+            onClick={() => setActiveTab("matchup")}
+            type="button"
+          >
+            Matchup
+          </button>
+          <button
+            className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === "odds"
+                ? "text-[#1B365D] border-b-2 border-[#F4793B]"
+                : "text-[#5A7A99] hover:text-[#1B365D]"
+            }`}
+            onClick={() => setActiveTab("odds")}
+            type="button"
+          >
+            Odds & Analysis
+          </button>
+        </div>
+
         <div className="p-5">
-          <div className="flex flex-col gap-3">
-            {[team1, team2].map((team, i) => {
-              const score = i === 0 ? result?.team1Score : result?.team2Score;
-              const isWinner = result?.winnerTeamId === team?.id;
-              return (
-                <div
-                  key={team?.id ?? i}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${
-                    isWinner ? "bg-green-50 ring-1 ring-green-200" : "bg-[#EFF5FA]"
-                  }`}
-                >
-                  {team?.logoUrl && (
-                    <img src={team.logoUrl} alt="" className="w-10 h-10 object-contain" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#5A7A99]">{team?.seed}</span>
-                      <span className={`text-base font-semibold truncate ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
-                        {team ? schoolName(team.name) : "TBD"}
-                      </span>
+          {activeTab === "matchup" ? (
+            <>
+              <div className="flex flex-col gap-3">
+                {[team1, team2].map((team, i) => {
+                  const score = i === 0 ? result?.team1Score : result?.team2Score;
+                  const isWinner = result?.winnerTeamId === team?.id;
+                  return (
+                    <div
+                      key={team?.id ?? i}
+                      className={`flex items-center gap-3 p-3 rounded-xl ${
+                        isWinner ? "bg-green-50 ring-1 ring-green-200" : "bg-[#EFF5FA]"
+                      }`}
+                    >
+                      {team?.logoUrl && (
+                        <img src={team.logoUrl} alt="" className="w-10 h-10 object-contain" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-[#5A7A99]">{team?.seed}</span>
+                          <span className={`text-base font-semibold truncate ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
+                            {team ? schoolName(team.name) : "TBD"}
+                          </span>
+                        </div>
+                      </div>
+                      {score !== null && score !== undefined && (
+                        <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
+                          {score}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  {score !== null && score !== undefined && (
-                    <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
-                      {score}
-                    </span>
+                  );
+                })}
+              </div>
+
+              {result?.status === "in_progress" && (
+                <div className="mt-4 flex items-center gap-2 justify-center">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                  </span>
+                  <span className="text-sm font-bold text-green-600 uppercase">Live</span>
+                </div>
+              )}
+              {result?.status === "final" && (
+                <div className="mt-4 text-center text-sm font-bold text-[#5A7A99] uppercase">Final</div>
+              )}
+
+              {(gameInfo?.startTime || gameInfo?.venue || gameInfo?.broadcast) && (
+                <div className="mt-4 pt-4 border-t border-[#BFD4E4]/50 space-y-2.5">
+                  {startDate && (
+                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                      {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                      {" at "}
+                      {startDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    </div>
+                  )}
+                  {gameInfo?.venue && (
+                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                      </svg>
+                      {gameInfo.venue}
+                    </div>
+                  )}
+                  {gameInfo?.broadcast && (
+                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
+                      </svg>
+                      {gameInfo.broadcast}
+                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-
-          {result?.status === "in_progress" && (
-            <div className="mt-4 flex items-center gap-2 justify-center">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
-              </span>
-              <span className="text-sm font-bold text-green-600 uppercase">Live</span>
-            </div>
-          )}
-          {result?.status === "final" && (
-            <div className="mt-4 text-center text-sm font-bold text-[#5A7A99] uppercase">Final</div>
-          )}
-
-          {(gameInfo?.startTime || gameInfo?.venue || gameInfo?.broadcast) && (
-            <div className="mt-4 pt-4 border-t border-[#BFD4E4]/50 space-y-2.5">
-              {startDate && (
-                <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                  {" at "}
-                  {startDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-                </div>
               )}
-              {gameInfo?.venue && (
-                <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                  </svg>
-                  {gameInfo.venue}
-                </div>
+            </>
+          ) : (
+            /* Odds & Analysis Tab */
+            <div className="space-y-4">
+              {gameInfo && (
+                <WinProbabilityBar team1={team1} team2={team2} gameInfo={gameInfo} />
               )}
-              {gameInfo?.broadcast && (
-                <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
-                  </svg>
-                  {gameInfo.broadcast}
-                </div>
-              )}
+              {gameInfo && <OddsTable gameInfo={gameInfo} />}
+              {gameInfo?.gameId && <AnalysisSection gameId={gameInfo.gameId} />}
             </div>
           )}
         </div>

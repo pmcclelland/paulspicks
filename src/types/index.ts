@@ -30,6 +30,7 @@ export type ESPNCompetitor = {
   score: string;
   curatedRank?: { current: number };
   winner?: boolean;
+  homeAway?: string;
 };
 
 export type ESPNEvent = {

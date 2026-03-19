@@ -45,6 +45,12 @@ export async function GET() {
               team1Score: g.team1Score,
               team2Score: g.team2Score,
               winnerTeamId: null,
+              spreadLine: g.spreadLine,
+              spreadDetails: g.spreadDetails,
+              moneylineTeam1: g.moneylineTeam1,
+              moneylineTeam2: g.moneylineTeam2,
+              overUnder: g.overUnder,
+              oddsProvider: g.oddsProvider,
               team1: g.team1
                 ? {
                     id: -1,

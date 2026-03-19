@@ -25,6 +25,12 @@ export type GameData = {
   venue?: string | null;
   broadcast?: string | null;
   playInTeams?: string | null;
+  spreadLine?: string | null;
+  spreadDetails?: string | null;
+  moneylineTeam1?: string | null;
+  moneylineTeam2?: string | null;
+  overUnder?: string | null;
+  oddsProvider?: string | null;
 };
 
 const ROUND_HEADERS: Record<number, { name: string; dates: string }> = {
@@ -119,6 +125,13 @@ export default function BracketRegion({
                   broadcast: game.broadcast,
                   round: game.round,
                   region: game.region,
+                  gameId: game.id,
+                  spreadLine: game.spreadLine,
+                  spreadDetails: game.spreadDetails,
+                  moneylineTeam1: game.moneylineTeam1,
+                  moneylineTeam2: game.moneylineTeam2,
+                  overUnder: game.overUnder,
+                  oddsProvider: game.oddsProvider,
                 };
 
                 return (

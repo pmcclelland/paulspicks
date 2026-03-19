@@ -105,6 +105,12 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         startTime: event.startTime || dbGame.startTime,
         venue: event.venue || dbGame.venue,
         broadcast: event.broadcast || dbGame.broadcast,
+        spreadLine: event.spreadLine ?? dbGame.spreadLine,
+        spreadDetails: event.spreadDetails ?? dbGame.spreadDetails,
+        moneylineTeam1: event.moneylineTeam1 ?? dbGame.moneylineTeam1,
+        moneylineTeam2: event.moneylineTeam2 ?? dbGame.moneylineTeam2,
+        overUnder: event.overUnder ?? dbGame.overUnder,
+        oddsProvider: event.oddsProvider ?? dbGame.oddsProvider,
       })
       .where(eq(games.id, dbGame.id));
     updatedGames++;

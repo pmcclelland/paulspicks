@@ -36,6 +36,16 @@ export const games = sqliteTable("games", {
   venue: text("venue"),
   broadcast: text("broadcast"),
   playInTeams: text("play_in_teams"), // JSON: [{id, name, abbreviation, seed, logoUrl},...] for First Four slots
+  // Betting odds
+  spreadLine: text("spread_line"),
+  spreadDetails: text("spread_details"),
+  moneylineTeam1: text("moneyline_team1"),
+  moneylineTeam2: text("moneyline_team2"),
+  overUnder: text("over_under"),
+  oddsProvider: text("odds_provider"),
+  // AI analysis cache
+  aiAnalysis: text("ai_analysis"),
+  aiAnalysisAt: text("ai_analysis_at"),
 });
 
 export const picks = sqliteTable("picks", {

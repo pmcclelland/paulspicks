@@ -26,6 +26,13 @@ export type ParsedGame = {
   startTime: string | null;
   venue: string | null;
   broadcast: string | null;
+  // Odds
+  spreadLine: string | null;
+  spreadDetails: string | null;
+  moneylineTeam1: string | null;
+  moneylineTeam2: string | null;
+  overUnder: string | null;
+  oddsProvider: string | null;
 };
 
 const ROUND_NAME_MAP: Record<string, number> = {
@@ -196,6 +203,41 @@ export function parseTournamentData(events: any[]): {
     const broadcast =
       competition.broadcasts?.[0]?.names?.join(", ") || null;
 
+    // Extract betting odds
+    let spreadLine: string | null = null;
+    let spreadDetails: string | null = null;
+    let moneylineTeam1: string | null = null;
+    let moneylineTeam2: string | null = null;
+    let overUnder: string | null = null;
+    let oddsProvider: string | null = null;
+
+    const oddsData = competition.odds?.[0];
+    if (oddsData) {
+      spreadLine = oddsData.spread != null ? String(oddsData.spread) : null;
+      spreadDetails = oddsData.details || null;
+      overUnder = oddsData.overUnder != null ? String(oddsData.overUnder) : null;
+      oddsProvider = oddsData.provider?.name || null;
+
+      // Map moneyline to team1/team2 using ESPN team IDs
+      const homeTeamId = oddsData.homeTeamOdds?.team?.id;
+      const homeML = oddsData.homeTeamOdds?.moneyLine != null
+        ? String(oddsData.homeTeamOdds.moneyLine)
+        : oddsData.moneyline?.home?.close?.odds || null;
+      const awayML = oddsData.awayTeamOdds?.moneyLine != null
+        ? String(oddsData.awayTeamOdds.moneyLine)
+        : oddsData.moneyline?.away?.close?.odds || null;
+
+      if (team1 && team2 && homeTeamId) {
+        if (team1.espnTeamId === homeTeamId) {
+          moneylineTeam1 = homeML;
+          moneylineTeam2 = awayML;
+        } else {
+          moneylineTeam1 = awayML;
+          moneylineTeam2 = homeML;
+        }
+      }
+    }
+
     games.push({
       espnEventId: event.id,
       round,
@@ -210,6 +252,12 @@ export function parseTournamentData(events: any[]): {
       startTime: event.date || null,
       venue,
       broadcast,
+      spreadLine,
+      spreadDetails,
+      moneylineTeam1,
+      moneylineTeam2,
+      overUnder,
+      oddsProvider,
     });
   }
 

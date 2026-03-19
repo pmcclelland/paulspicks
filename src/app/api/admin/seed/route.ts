@@ -242,6 +242,12 @@ export async function POST() {
               ? espnToDbId.get(espnGame.winnerEspnTeamId) ?? null
               : null,
             playInTeams: playInTeamsJson,
+            spreadLine: espnGame?.spreadLine ?? null,
+            spreadDetails: espnGame?.spreadDetails ?? null,
+            moneylineTeam1: espnGame?.moneylineTeam1 ?? null,
+            moneylineTeam2: espnGame?.moneylineTeam2 ?? null,
+            overUnder: espnGame?.overUnder ?? null,
+            oddsProvider: espnGame?.oddsProvider ?? null,
           };
 
           if (existingRows.length > 0) {

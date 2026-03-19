@@ -8,6 +8,13 @@
       "when": 1773872136392,
       "tag": "0000_amusing_deadpool",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773890269557,
+      "tag": "0001_white_amazoness",
+      "breakpoints": true
     }
   ]
 }
