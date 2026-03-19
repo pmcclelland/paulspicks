@@ -30,7 +30,7 @@ function Countdown({ targetDate }: { targetDate: Date }) {
   const urgent = diff < 3600000; // less than 1 hour
 
   return (
-    <div className={`mx-4 rounded-lg px-4 py-3 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 ${
+    <div className={`mx-4 rounded-lg px-4 py-3 flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-4 ${
       urgent ? "bg-red-50 border border-red-200" : "bg-[#EFF5FA] border border-[#BFD4E4]/50"
     }`}>
       <span className={`text-xs font-bold uppercase tracking-wider ${urgent ? "text-red-600" : "text-[#5A7A99]"}`}>
