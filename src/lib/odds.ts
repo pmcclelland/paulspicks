@@ -36,3 +36,32 @@ export function formatOdds(odds: string): string {
   if (isNaN(num)) return odds;
   return num > 0 ? `+${num}` : `${num}`;
 }
+
+export type UpsetLevel = "potential" | "alert" | null;
+
+export function detectUpset(
+  team1Seed: number,
+  team2Seed: number,
+  team1Odds: string | null | undefined,
+  team2Odds: string | null | undefined,
+  status: string
+): { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number } {
+  if (status === "final" || !team1Odds || !team2Odds) {
+    return { level: null, underdogSlot: null, probability: 0 };
+  }
+  if (team1Seed === team2Seed) {
+    return { level: null, underdogSlot: null, probability: 0 };
+  }
+
+  const probs = fairProbabilities(team1Odds, team2Odds);
+  const underdogSlot = team1Seed > team2Seed ? "team1" : "team2";
+  const underdogProb = underdogSlot === "team1" ? probs.team1 : probs.team2;
+
+  if (underdogProb >= 0.50) {
+    return { level: "alert", underdogSlot, probability: underdogProb };
+  }
+  if (underdogProb >= 0.35) {
+    return { level: "potential", underdogSlot, probability: underdogProb };
+  }
+  return { level: null, underdogSlot: null, probability: underdogProb };
+}

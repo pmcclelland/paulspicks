@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paul's Picks
+
+A March Madness bracket pool web app for competing with friends during the NCAA tournament. Fill out your bracket, track live scores, and climb the leaderboard.
+
+## Features
+
+- **Bracket Picking** — Interactive bracket UI with automatic pick propagation and downstream clearing
+- **Live Scores** — Auto-refreshing scores from ESPN (every 2 minutes)
+- **Leaderboard** — Real-time rankings with per-round point breakdowns
+- **AI Analysis** — Claude-powered matchup analysis with KenPom stats and betting odds
+- **Admin Dashboard** — Seed tournaments, refresh scores, lock brackets, view stats
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Database:** Turso (LibSQL) with Drizzle ORM
+- **Auth:** NextAuth v5 (credentials, JWT strategy)
+- **UI:** shadcn/ui, Tailwind CSS v4
+- **AI:** Anthropic Claude SDK
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 20+
+- pnpm
+- A [Turso](https://turso.tech) database
+
+### Environment Variables
+
+Create a `.env.local` file:
+
+```env
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-token
+AUTH_SECRET=your-nextauth-secret
+ANTHROPIC_API_KEY=your-key  # optional, for AI analysis
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm db:push          # Push schema to Turso
+pnpm dev              # Start dev server at http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Seeding the Tournament
 
-## Learn More
+1. Register a user account at `/register`
+2. Promote to admin: update `is_admin = 1` for your user in Turso
+3. Go to `/admin` and click "Seed Tournament" (fetches from ESPN, or uses sample data if tournament hasn't started)
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev              # Start dev server (port 3000)
+pnpm build            # Production build
+pnpm start            # Start production server
+pnpm lint             # Run ESLint
+pnpm db:generate      # Generate Drizzle migration from schema changes
+pnpm db:push          # Push schema to Turso
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scoring
 
-## Deploy on Vercel
+| Round | Points |
+|-------|--------|
+| Round of 64 | 10 |
+| Round of 32 | 20 |
+| Sweet 16 | 40 |
+| Elite 8 | 80 |
+| Final Four | 160 |
+| Championship | 320 |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Maximum possible:** 1,920 points (perfect bracket)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+src/
+├── app/                  # Next.js App Router pages and API routes
+├── components/           # React components (bracket, nav, leaderboard, shadcn/ui)
+├── lib/                  # Business logic (ESPN, scoring, bracket utils, auth, DB)
+└── types/                # TypeScript type definitions
+```
+
+See [CLAUDE.md](./CLAUDE.md) for detailed architecture documentation.

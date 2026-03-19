@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { PlayInTeam } from "./bracket-region";
-import { fairProbabilities, formatOdds } from "@/lib/odds";
+import { fairProbabilities, formatOdds, detectUpset, type UpsetLevel } from "@/lib/odds";
 
 export type TeamData = {
   id: number;
@@ -385,6 +385,7 @@ function InfoModal({
   team2,
   result,
   gameInfo,
+  upsetInfo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -392,6 +393,7 @@ function InfoModal({
   team2: TeamData | null;
   result?: GameResult;
   gameInfo?: GameInfo;
+  upsetInfo?: { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number };
 }) {
   const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom">("matchup");
 
@@ -421,6 +423,25 @@ function InfoModal({
             </svg>
           </button>
         </div>
+
+        {/* Upset Banner */}
+        {upsetInfo && (
+          <div className={`px-5 py-2 flex items-center gap-2 ${
+            upsetInfo.level === "alert"
+              ? "bg-amber-500 text-white"
+              : "bg-amber-100 text-amber-800"
+          }`}>
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm font-bold">
+              {upsetInfo.level === "alert" ? "Upset Alert" : "Potential Upset"}
+            </span>
+            <span className={`text-sm ${upsetInfo.level === "alert" ? "opacity-80" : "opacity-70"}`}>
+              — Underdog has {Math.round(upsetInfo.probability * 100)}% win probability
+            </span>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-[#BFD4E4]/50">
@@ -636,6 +657,16 @@ export default function BracketGame({
 
   const isLive = result?.status === "in_progress";
 
+  const upsetInfo = team1 && team2 && gameInfo
+    ? detectUpset(
+        team1.seed,
+        team2.seed,
+        gameInfo.moneylineTeam1,
+        gameInfo.moneylineTeam2,
+        result?.status ?? "scheduled"
+      )
+    : { level: null as UpsetLevel, underdogSlot: null, probability: 0 };
+
   return (
     <>
       <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border ${
@@ -711,6 +742,7 @@ export default function BracketGame({
         team2={team2}
         result={result}
         gameInfo={gameInfo}
+        upsetInfo={upsetInfo.level ? upsetInfo : undefined}
       />
     </>
   );
