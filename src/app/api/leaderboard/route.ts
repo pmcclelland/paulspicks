@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,30 @@ export async function GET() {
       })
       .from(schema.picks)
       .innerJoin(schema.games, eq(schema.picks.gameId, schema.games.id));
+
+    // Get championship picks (round 6) for each user
+    const championPicks = await db
+      .select({
+        userId: schema.picks.userId,
+        teamName: schema.teams.name,
+        abbreviation: schema.teams.abbreviation,
+        seed: schema.teams.seed,
+        logoUrl: schema.teams.logoUrl,
+      })
+      .from(schema.picks)
+      .innerJoin(schema.games, eq(schema.picks.gameId, schema.games.id))
+      .innerJoin(schema.teams, eq(schema.picks.pickedTeamId, schema.teams.id))
+      .where(eq(schema.games.round, 6));
+
+    const championMap = new Map<number, { teamName: string; abbreviation: string; seed: number; logoUrl: string | null }>();
+    for (const cp of championPicks) {
+      championMap.set(cp.userId, {
+        teamName: cp.teamName,
+        abbreviation: cp.abbreviation,
+        seed: cp.seed,
+        logoUrl: cp.logoUrl,
+      });
+    }
 
     // Aggregate per user
     const userMap = new Map<
@@ -65,6 +89,7 @@ export async function GET() {
           correctPicks: stats.correctPicks,
           totalPicks: stats.totalPicks,
           roundBreakdown: stats.roundBreakdown,
+          championPick: championMap.get(user.id) || null,
           rank: 0,
         };
       })

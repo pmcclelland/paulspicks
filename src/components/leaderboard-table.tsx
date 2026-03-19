@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -10,6 +11,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BadgeIcons } from "@/components/badges";
+import { schoolName } from "@/lib/school-names";
+
+type ChampionPick = {
+  teamName: string;
+  abbreviation: string;
+  seed: number;
+  logoUrl: string | null;
+};
+
+type Badge = {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  userId: number | null;
+  userName: string | null;
+  stat: string;
+};
 
 type LeaderboardEntry = {
   rank: number;
@@ -18,16 +38,19 @@ type LeaderboardEntry = {
   totalPoints: number;
   roundPoints: [number, number, number, number, number, number];
   maxPossible?: number;
+  championPick?: ChampionPick | null;
 };
 
 type SortField = "rank" | "totalPoints" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6";
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
+  badges?: Badge[];
 };
 
-export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
+export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTableProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [sortField, setSortField] = useState<SortField>("rank");
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -41,6 +64,14 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
     } else {
       setSortField(field);
       setSortAsc(field === "rank");
+    }
+  }
+
+  function handleRowClick(userId: number) {
+    if (currentUserId === userId) {
+      router.push("/bracket");
+    } else {
+      router.push(`/bracket/${userId}`);
     }
   }
 
@@ -105,6 +136,7 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
                 Rank{sortIcon("rank")}
               </TableHead>
               <TableHead>Name</TableHead>
+              <TableHead className="w-36">Champion</TableHead>
               <TableHead
                 className="cursor-pointer select-none text-right"
                 onClick={() => handleSort("totalPoints")}
@@ -150,6 +182,7 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
               {entries.some((e) => e.maxPossible !== undefined) && (
                 <TableHead className="text-right">Max</TableHead>
               )}
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -158,17 +191,41 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
               return (
                 <TableRow
                   key={entry.userId}
-                  className={
+                  className={`cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : ""
-                  }
+                  }`}
+                  onClick={() => handleRowClick(entry.userId)}
                 >
                   <TableCell className="font-mono">{entry.rank}</TableCell>
                   <TableCell>
-                    {entry.name}
-                    {isCurrentUser && (
-                      <span className="ml-2 text-xs text-[#F4793B]">(you)</span>
+                    <span className="flex items-center">
+                      {entry.name}
+                      {isCurrentUser && (
+                        <span className="ml-2 text-xs text-[#F4793B]">(you)</span>
+                      )}
+                      {badges.length > 0 && (
+                        <BadgeIcons badges={badges} userId={entry.userId} />
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {entry.championPick ? (
+                      <div className="flex items-center gap-1.5">
+                        {entry.championPick.logoUrl && (
+                          <img
+                            src={entry.championPick.logoUrl}
+                            alt={entry.championPick.abbreviation}
+                            className="w-5 h-5 object-contain"
+                          />
+                        )}
+                        <span className="text-xs text-[#5A7A99]">
+                          {entry.championPick.abbreviation}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-300">&mdash;</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right font-bold">
@@ -197,6 +254,21 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
                       {entry.maxPossible ?? "-"}
                     </TableCell>
                   )}
+                  <TableCell>
+                    <svg
+                      className="w-4 h-4 text-[#BFD4E4]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -212,6 +284,7 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
               <TableHead className="w-12">Rank</TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Points</TableHead>
+              <TableHead className="w-6" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,21 +293,58 @@ export default function LeaderboardTable({ entries }: LeaderboardTableProps) {
               return (
                 <TableRow
                   key={entry.userId}
-                  className={
+                  className={`cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : ""
-                  }
+                  }`}
+                  onClick={() => handleRowClick(entry.userId)}
                 >
                   <TableCell className="font-mono">{entry.rank}</TableCell>
                   <TableCell>
-                    {entry.name}
-                    {isCurrentUser && (
-                      <span className="ml-1 text-xs text-[#F4793B]">(you)</span>
-                    )}
+                    <div>
+                      <span className="flex items-center">
+                        {entry.name}
+                        {isCurrentUser && (
+                          <span className="ml-1 text-xs text-[#F4793B]">(you)</span>
+                        )}
+                        {badges.length > 0 && (
+                          <BadgeIcons badges={badges} userId={entry.userId} />
+                        )}
+                      </span>
+                      {entry.championPick && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {entry.championPick.logoUrl && (
+                            <img
+                              src={entry.championPick.logoUrl}
+                              alt={entry.championPick.abbreviation}
+                              className="w-4 h-4 object-contain"
+                            />
+                          )}
+                          <span className="text-[10px] text-[#5A7A99]">
+                            {entry.championPick.abbreviation}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right font-bold">
                     {entry.totalPoints}
+                  </TableCell>
+                  <TableCell>
+                    <svg
+                      className="w-4 h-4 text-[#BFD4E4]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
                   </TableCell>
                 </TableRow>
               );

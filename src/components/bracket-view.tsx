@@ -72,6 +72,8 @@ type BracketViewProps = {
   teams: TeamData[];
   initialPicks: { gameId: number; pickedTeamId: number }[];
   locked: boolean;
+  title?: string;
+  readOnly?: boolean;
 };
 
 export default function BracketView({
@@ -79,12 +81,14 @@ export default function BracketView({
   teams: teamsList,
   initialPicks,
   locked,
+  title = "Your Bracket",
+  readOnly = false,
 }: BracketViewProps) {
   const STORAGE_KEY = "paulspicks-bracket-draft";
 
   const [userPicks, setUserPicks] = useState<Map<number, number>>(() => {
-    // Check localStorage for unsaved draft picks
-    if (typeof window !== "undefined") {
+    // In readOnly mode, skip localStorage
+    if (!readOnly && typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -110,7 +114,7 @@ export default function BracketView({
   });
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (readOnly || typeof window === "undefined") return false;
     try {
       return localStorage.getItem(STORAGE_KEY) !== null;
     } catch {
@@ -118,16 +122,16 @@ export default function BracketView({
     }
   });
 
-  // Persist picks to localStorage whenever they change
+  // Persist picks to localStorage whenever they change (skip in readOnly mode)
   useEffect(() => {
-    if (!dirty) return;
+    if (readOnly || !dirty) return;
     try {
       const entries = Array.from(userPicks.entries());
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     } catch {
       // Storage full or unavailable
     }
-  }, [userPicks, dirty]);
+  }, [userPicks, dirty, readOnly]);
 
   // Build team lookup map
   const teamsMap = useMemo(() => {
@@ -430,17 +434,17 @@ export default function BracketView({
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-extrabold text-[#1B365D]">Your Bracket</h1>
+          <h1 className="text-2xl font-extrabold text-[#1B365D]">{title}</h1>
           <span className="text-sm font-medium text-muted-foreground">
             {totalPicks}/{totalGames} picks made
           </span>
-          {locked && (
+          {locked && !readOnly && (
             <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-3 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">
               Locked
             </span>
           )}
         </div>
-        {!locked && (
+        {!locked && !readOnly && (
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setShowAutoPick(true)}
@@ -461,9 +465,9 @@ export default function BracketView({
         )}
       </div>
 
-      {showCountdown && firstTipoff && <Countdown targetDate={firstTipoff} />}
+      {!readOnly && showCountdown && firstTipoff && <Countdown targetDate={firstTipoff} />}
 
-      {locked && (
+      {locked && !readOnly && (
         <div className="mx-4 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
           Brackets are locked. No changes can be made.
         </div>

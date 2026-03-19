@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { games, teams, picks, appState } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { games, teams, picks, appState, users } from "@/lib/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import { refreshScoresIfStale } from "@/lib/refresh-scores";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -23,7 +23,25 @@ export async function GET() {
       console.warn("Auto-refresh failed:", e);
     }
 
-    const userId = parseInt(session.user.id);
+    const currentUserId = parseInt(session.user.id);
+    const requestedUserId = request.nextUrl.searchParams.get("userId");
+    const targetUserId = requestedUserId ? parseInt(requestedUserId) : currentUserId;
+    const isViewingOther = targetUserId !== currentUserId;
+
+    // If viewing another user's bracket, picks must be locked
+    if (isViewingOther) {
+      const lockedState = await db
+        .select()
+        .from(appState)
+        .where(eq(appState.key, "picks_locked"));
+      const locked = lockedState.length > 0 && lockedState[0].value === "true";
+      if (!locked) {
+        return NextResponse.json(
+          { error: "Cannot view other brackets until picks are locked" },
+          { status: 403 }
+        );
+      }
+    }
 
     const allGames = await db
       .select()
@@ -35,7 +53,7 @@ export async function GET() {
     const userPicks = await db
       .select()
       .from(picks)
-      .where(eq(picks.userId, userId));
+      .where(eq(picks.userId, targetUserId));
 
     const lockedState = await db
       .select()
@@ -46,12 +64,27 @@ export async function GET() {
 
     const hasLiveGames = allGames.some((g) => g.status === "in_progress");
 
+    // Look up target user's name if viewing another user
+    let viewingUser: { id: number; name: string } | null = null;
+    if (isViewingOther) {
+      const targetUser = await db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(eq(users.id, targetUserId));
+      if (targetUser.length === 0) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      viewingUser = targetUser[0];
+    }
+
     return NextResponse.json({
       games: allGames,
       teams: allTeams,
       picks: userPicks,
       locked,
       hasLiveGames,
+      viewingUser,
+      readOnly: isViewingOther,
     });
   } catch (error) {
     console.error("Bracket GET error:", error);
