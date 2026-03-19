@@ -167,6 +167,179 @@ function OddsTable({ gameInfo }: { gameInfo: GameInfo }) {
   );
 }
 
+type KenpomTeamData = {
+  teamName: string;
+  rank: number;
+  adjEM: string;
+  adjO: string;
+  adjORank: number;
+  adjD: string;
+  adjDRank: number;
+  adjT: string;
+  adjTRank: number;
+  record: string;
+  conference: string;
+};
+
+function KenpomSection({
+  team1,
+  team2,
+}: {
+  team1: TeamData | null;
+  team2: TeamData | null;
+}) {
+  const [data, setData] = useState<{ team1: KenpomTeamData | null; team2: KenpomTeamData | null } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+
+  useEffect(() => {
+    if (fetched || (!team1 && !team2)) return;
+    setFetched(true);
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (team1) params.set("team1", team1.name);
+    if (team2) params.set("team2", team2.name);
+    fetch(`/api/kenpom?${params}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [team1, team2, fetched]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-4 bg-[#EFF5FA] rounded w-2/3" />
+        <div className="h-20 bg-[#EFF5FA] rounded" />
+        <div className="h-20 bg-[#EFF5FA] rounded" />
+      </div>
+    );
+  }
+
+  if (!data || (!data.team1 && !data.team2)) {
+    return <p className="text-sm text-[#5A7A99] italic">KenPom data not available</p>;
+  }
+
+  const k1 = data.team1;
+  const k2 = data.team2;
+
+  function RankBadge({ rank, total = 365 }: { rank: number; total?: number }) {
+    const pct = rank / total;
+    const color =
+      pct <= 0.1 ? "bg-green-100 text-green-700" :
+      pct <= 0.25 ? "bg-blue-100 text-blue-700" :
+      pct <= 0.5 ? "bg-yellow-100 text-yellow-800" :
+      "bg-red-100 text-red-700";
+    return (
+      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${color}`}>
+        #{rank}
+      </span>
+    );
+  }
+
+  // Stat comparison row
+  function StatRow({
+    label,
+    val1,
+    rank1,
+    val2,
+    rank2,
+    lowerIsBetter = false,
+  }: {
+    label: string;
+    val1?: string;
+    rank1?: number;
+    val2?: string;
+    rank2?: number;
+    lowerIsBetter?: boolean;
+  }) {
+    const r1 = rank1 ?? 999;
+    const r2 = rank2 ?? 999;
+    const better1 = lowerIsBetter ? r1 < r2 : r1 < r2;
+    const better2 = lowerIsBetter ? r2 < r1 : r2 < r1;
+    return (
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-sm">
+        <div className={`text-right tabular-nums ${better1 ? "font-bold text-[#1B365D]" : "text-[#5A7A99]"}`}>
+          {val1 ?? "—"} {rank1 != null && <RankBadge rank={rank1} />}
+        </div>
+        <div className="text-[10px] font-bold text-[#5A7A99] uppercase text-center w-12">{label}</div>
+        <div className={`text-left tabular-nums ${better2 ? "font-bold text-[#1B365D]" : "text-[#5A7A99]"}`}>
+          {rank2 != null && <RankBadge rank={rank2} />} {val2 ?? "—"}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Team headers */}
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+        <div className="text-right">
+          <div className="text-xs font-bold text-[#1B365D] truncate">
+            {team1 ? schoolName(team1.name) : "—"}
+          </div>
+          {k1 && (
+            <div className="text-[10px] text-[#5A7A99]">
+              #{k1.rank} overall &middot; {k1.record}
+            </div>
+          )}
+        </div>
+        <div className="text-[10px] font-bold text-[#5A7A99] text-center w-12">vs</div>
+        <div className="text-left">
+          <div className="text-xs font-bold text-[#F4793B] truncate">
+            {team2 ? schoolName(team2.name) : "—"}
+          </div>
+          {k2 && (
+            <div className="text-[10px] text-[#5A7A99]">
+              #{k2.rank} overall &middot; {k2.record}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Efficiency comparison */}
+      <div className="bg-[#EFF5FA] rounded-xl p-3 space-y-2.5">
+        <StatRow
+          label="AdjEM"
+          val1={k1?.adjEM}
+          rank1={k1?.rank}
+          val2={k2?.adjEM}
+          rank2={k2?.rank}
+        />
+        <div className="border-t border-[#BFD4E4]/50" />
+        <StatRow
+          label="Off Eff"
+          val1={k1?.adjO}
+          rank1={k1?.adjORank}
+          val2={k2?.adjO}
+          rank2={k2?.adjORank}
+        />
+        <div className="border-t border-[#BFD4E4]/50" />
+        <StatRow
+          label="Def Eff"
+          val1={k1?.adjD}
+          rank1={k1?.adjDRank}
+          val2={k2?.adjD}
+          rank2={k2?.adjDRank}
+          lowerIsBetter
+        />
+        <div className="border-t border-[#BFD4E4]/50" />
+        <StatRow
+          label="Tempo"
+          val1={k1?.adjT}
+          rank1={k1?.adjTRank}
+          val2={k2?.adjT}
+          rank2={k2?.adjTRank}
+        />
+      </div>
+
+      <p className="text-[10px] text-[#5A7A99]/60">
+        Adjusted efficiency ratings via KenPom. Lower Def Eff = better defense.
+      </p>
+    </div>
+  );
+}
+
 function AnalysisSection({ gameId }: { gameId?: number }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -220,7 +393,7 @@ function InfoModal({
   result?: GameResult;
   gameInfo?: GameInfo;
 }) {
-  const [activeTab, setActiveTab] = useState<"matchup" | "odds">("matchup");
+  const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom">("matchup");
 
   if (!open) return null;
 
@@ -251,28 +424,24 @@ function InfoModal({
 
         {/* Tabs */}
         <div className="flex border-b border-[#BFD4E4]/50">
-          <button
-            className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
-              activeTab === "matchup"
-                ? "text-[#1B365D] border-b-2 border-[#F4793B]"
-                : "text-[#5A7A99] hover:text-[#1B365D]"
-            }`}
-            onClick={() => setActiveTab("matchup")}
-            type="button"
-          >
-            Matchup
-          </button>
-          <button
-            className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
-              activeTab === "odds"
-                ? "text-[#1B365D] border-b-2 border-[#F4793B]"
-                : "text-[#5A7A99] hover:text-[#1B365D]"
-            }`}
-            onClick={() => setActiveTab("odds")}
-            type="button"
-          >
-            Odds & Analysis
-          </button>
+          {([
+            { key: "matchup" as const, label: "Matchup" },
+            { key: "kenpom" as const, label: "KenPom" },
+            { key: "odds" as const, label: "Odds & AI" },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+                activeTab === tab.key
+                  ? "text-[#1B365D] border-b-2 border-[#F4793B]"
+                  : "text-[#5A7A99] hover:text-[#1B365D]"
+              }`}
+              onClick={() => setActiveTab(tab.key)}
+              type="button"
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="p-5">
@@ -355,6 +524,9 @@ function InfoModal({
                 </div>
               )}
             </>
+          ) : activeTab === "kenpom" ? (
+            /* KenPom Tab */
+            <KenpomSection team1={team1} team2={team2} />
           ) : (
             /* Odds & Analysis Tab */
             <div className="space-y-4">
