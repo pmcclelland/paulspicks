@@ -8,6 +8,7 @@ import BracketRegion, { type GameData } from "./bracket-region";
 import FinalFour from "./final-four";
 import { type TeamData } from "./bracket-game";
 import { REGIONS } from "@/lib/bracket-utils";
+import { schoolName } from "@/lib/school-names";
 
 type BracketViewProps = {
   games: GameData[];
@@ -261,6 +262,37 @@ export default function BracketView({
     }
   }
 
+  const [showAutoPick, setShowAutoPick] = useState(false);
+  const [autoPickLoading, setAutoPickLoading] = useState(false);
+
+  async function handleAutoPick(championTeamId: number) {
+    setAutoPickLoading(true);
+    try {
+      const res = await fetch("/api/bracket/autopick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ championTeamId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Auto-pick failed.");
+        return;
+      }
+      const newPicks = new Map<number, number>();
+      for (const p of data.picks) {
+        newPicks.set(p.gameId, p.pickedTeamId);
+      }
+      setUserPicks(newPicks);
+      setDirty(true);
+      setShowAutoPick(false);
+      toast.success(`Bracket auto-filled with ${data.totalPicks} picks! Review and save when ready.`);
+    } catch {
+      toast.error("Auto-pick failed. Please try again.");
+    } finally {
+      setAutoPickLoading(false);
+    }
+  }
+
   // Count picks
   const totalPicks = userPicks.size;
   const totalGames = 63;
@@ -298,13 +330,23 @@ export default function BracketView({
           )}
         </div>
         {!locked && (
-          <Button
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            className="bg-[#F4793B] hover:bg-[#E06830] text-white"
-          >
-            {saving ? "Saving..." : "Save Bracket"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAutoPick(true)}
+              disabled={saving || autoPickLoading}
+              variant="outline"
+              className="border-[#1B365D] text-[#1B365D] hover:bg-[#1B365D] hover:text-white"
+            >
+              {autoPickLoading ? "Generating..." : "Auto Pick"}
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !dirty}
+              className="bg-[#F4793B] hover:bg-[#E06830] text-white"
+            >
+              {saving ? "Saving..." : "Save Bracket"}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -478,6 +520,121 @@ export default function BracketView({
             </div>
           </TabsContent>
         </Tabs>
+      </div>
+
+      {/* Auto Pick Modal */}
+      {showAutoPick && (
+        <AutoPickModal
+          teams={teamsList}
+          loading={autoPickLoading}
+          onPick={handleAutoPick}
+          onClose={() => setShowAutoPick(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AutoPickModal({
+  teams,
+  loading,
+  onPick,
+  onClose,
+}: {
+  teams: TeamData[];
+  loading: boolean;
+  onPick: (championTeamId: number) => void;
+  onClose: () => void;
+}) {
+  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
+
+  // Group teams by region, sorted by seed
+  const teamsByRegion = useMemo(() => {
+    const map = new Map<string, TeamData[]>();
+    for (const team of teams) {
+      // Infer region from the team data — find from games context
+      // Teams don't have region directly, so group by seed ranges
+    }
+    // Simpler: just sort all teams by seed then name
+    return [...teams].sort((a, b) => a.seed - b.seed || a.name.localeCompare(b.name));
+  }, [teams]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-[#1B365D] px-5 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-base font-bold text-white">Auto Pick Bracket</div>
+            <div className="text-sm text-white/60 mt-0.5">
+              Choose your champion, we'll fill the rest
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#1B365D]">
+              Select National Champion
+            </label>
+            <select
+              className="w-full border border-[#BFD4E4] rounded-lg px-3 py-2.5 text-sm bg-white text-[#1B365D] focus:outline-none focus:ring-2 focus:ring-[#F4793B] focus:border-transparent"
+              value={selectedTeam ?? ""}
+              onChange={(e) => setSelectedTeam(e.target.value ? parseInt(e.target.value) : null)}
+            >
+              <option value="">Choose a team...</option>
+              {teamsByRegion.map((team) => (
+                <option key={team.id} value={team.id}>
+                  ({team.seed}) {schoolName(team.name)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-[#EFF5FA] rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-bold text-[#1B365D] uppercase tracking-wider">How it works</p>
+            <ul className="text-xs text-[#5A7A99] space-y-1">
+              <li>Your chosen champion wins every game on their path</li>
+              <li>Other matchups decided by KenPom rankings + betting odds</li>
+              <li>Historical upset rates applied (12 vs 5, 11 vs 6, etc.)</li>
+              <li>A realistic number of upsets sprinkled in each round</li>
+              <li>You can review and edit any pick before saving</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => selectedTeam && onPick(selectedTeam)}
+              disabled={!selectedTeam || loading}
+              className="flex-1 bg-[#F4793B] hover:bg-[#E06830] text-white"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Generating...
+                </span>
+              ) : (
+                "Generate Bracket"
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
