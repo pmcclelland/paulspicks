@@ -21,6 +21,7 @@ const BADGE_COLORS: Record<string, string> = {
   "heartbreaker": "from-rose-500/10 to-rose-600/5 border-rose-200",
   "lone-wolf": "from-slate-500/10 to-slate-600/5 border-slate-200",
   "homer": "from-green-500/10 to-green-600/5 border-green-200",
+  "close-but-no-cigar": "from-orange-500/10 to-orange-600/5 border-orange-200",
 };
 
 export default function Badges({ badges }: { badges: Badge[] }) {

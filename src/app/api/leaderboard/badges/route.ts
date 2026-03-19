@@ -240,6 +240,24 @@ export async function GET() {
       }
     }
 
+    // Close But No Cigar: Most upset picks that lost by 2 or fewer points
+    let closeButNoCigar: { userId: number; count: number } | null = null;
+    for (const [userId, picks] of picksByUser) {
+      let count = 0;
+      for (const pick of picks) {
+        if (pick.isCorrect !== 0) continue;
+        if (!isUpsetPick(pick.gameId, pick.pickedTeamId)) continue;
+        const game = gameMap.get(pick.gameId);
+        if (!game || game.status !== "final") continue;
+        if (game.team1Score == null || game.team2Score == null) continue;
+        const margin = Math.abs(game.team1Score - game.team2Score);
+        if (margin <= 2) count++;
+      }
+      if (count > 0 && (!closeButNoCigar || count > closeButNoCigar.count)) {
+        closeButNoCigar = { userId, count };
+      }
+    }
+
     // Homer: Picked the same team to win 4+ consecutive rounds
     let homer: { userId: number; teamName: string; rounds: number } | null = null;
     for (const [userId, picks] of picksByUser) {
@@ -369,6 +387,15 @@ export async function GET() {
         userId: homer?.userId ?? null,
         userName: homer ? (userMap.get(homer.userId) ?? null) : null,
         stat: homer ? `${homer.teamName} for ${homer.rounds} rounds` : "Unclaimed",
+      },
+      {
+        id: "close-but-no-cigar",
+        name: "Close But No Cigar",
+        emoji: "\u{1F6AC}",
+        description: "Most upset picks that lost by 2 or less",
+        userId: closeButNoCigar?.userId ?? null,
+        userName: closeButNoCigar ? (userMap.get(closeButNoCigar.userId) ?? null) : null,
+        stat: closeButNoCigar ? `${closeButNoCigar.count} near-miss${closeButNoCigar.count !== 1 ? "es" : ""}` : "No near-misses yet",
       },
     ];
 
