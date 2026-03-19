@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import ScoreCard from "@/components/score-card";
 import { ROUND_NAMES } from "@/lib/bracket-utils";
 
@@ -122,45 +122,142 @@ export default function ScoresPage() {
         </div>
       ) : (
         <div className="space-y-10">
-          {rounds.map((round) => {
-            const roundGames = gamesByRound.get(round) || [];
+          {/* Active rounds (have at least one non-final game) */}
+          {rounds
+            .filter((round) => {
+              const rg = gamesByRound.get(round) || [];
+              return rg.some((g) => g.status !== "final");
+            })
+            .map((round) => (
+              <RoundSection key={round} round={round} games={gamesByRound.get(round) || []} />
+            ))}
+
+          {/* Completed rounds */}
+          {(() => {
+            const completedRounds = rounds.filter((round) => {
+              const rg = gamesByRound.get(round) || [];
+              return rg.length > 0 && rg.every((g) => g.status === "final");
+            });
+            if (completedRounds.length === 0) return null;
             return (
-              <section key={round}>
-                <h2 className="text-lg font-semibold mb-4 text-[#1B365D]">
-                  {ROUND_NAMES[round] || `Round ${round}`}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {roundGames.map((game) => (
-                    <ScoreCard
-                      key={game.id}
-                      team1Name={game.team1?.name ?? "TBD"}
-                      team1Abbreviation={game.team1?.abbreviation ?? "TBD"}
-                      team1Seed={game.team1?.seed ?? 0}
-                      team1Score={game.team1Score}
-                      team1LogoUrl={game.team1?.logoUrl}
-                      team2Name={game.team2?.name ?? "TBD"}
-                      team2Abbreviation={game.team2?.abbreviation ?? "TBD"}
-                      team2Seed={game.team2?.seed ?? 0}
-                      team2Score={game.team2Score}
-                      team2LogoUrl={game.team2?.logoUrl}
-                      status={game.status}
-                      startTime={game.startTime}
-                      venue={game.venue}
-                      broadcast={game.broadcast}
-                      winnerTeamId={game.winnerTeamId}
-                      team1Id={game.team1Id ?? undefined}
-                      team2Id={game.team2Id ?? undefined}
-                      spreadDetails={game.spreadDetails}
-                      overUnder={game.overUnder}
-                      statusDetail={game.statusDetail}
-                    />
-                  ))}
-                </div>
-              </section>
+              <CompletedRounds
+                rounds={completedRounds}
+                gamesByRound={gamesByRound}
+              />
             );
-          })}
+          })()}
         </div>
       )}
     </div>
+  );
+}
+
+function GameGrid({ games }: { games: GameWithTeams[] }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {games.map((game) => (
+        <ScoreCard
+          key={game.id}
+          team1Name={game.team1?.name ?? "TBD"}
+          team1Abbreviation={game.team1?.abbreviation ?? "TBD"}
+          team1Seed={game.team1?.seed ?? 0}
+          team1Score={game.team1Score}
+          team1LogoUrl={game.team1?.logoUrl}
+          team2Name={game.team2?.name ?? "TBD"}
+          team2Abbreviation={game.team2?.abbreviation ?? "TBD"}
+          team2Seed={game.team2?.seed ?? 0}
+          team2Score={game.team2Score}
+          team2LogoUrl={game.team2?.logoUrl}
+          status={game.status}
+          startTime={game.startTime}
+          venue={game.venue}
+          broadcast={game.broadcast}
+          winnerTeamId={game.winnerTeamId}
+          team1Id={game.team1Id ?? undefined}
+          team2Id={game.team2Id ?? undefined}
+          spreadDetails={game.spreadDetails}
+          overUnder={game.overUnder}
+          statusDetail={game.statusDetail}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RoundSection({ round, games }: { round: number; games: GameWithTeams[] }) {
+  const liveGames = games.filter((g) => g.status === "in_progress");
+  const scheduledGames = games.filter((g) => g.status === "scheduled");
+  const finalGames = games.filter((g) => g.status === "final");
+  const activeGames = [...liveGames, ...scheduledGames];
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-4 text-[#1B365D]">
+        {ROUND_NAMES[round] || `Round ${round}`}
+      </h2>
+
+      {activeGames.length > 0 && <GameGrid games={activeGames} />}
+
+      {finalGames.length > 0 && (
+        <div className={activeGames.length > 0 ? "mt-6" : ""}>
+          {activeGames.length > 0 && (
+            <h3 className="text-sm font-medium text-[#5A7A99] mb-3 uppercase tracking-wider">
+              Final
+            </h3>
+          )}
+          <GameGrid games={finalGames} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CompletedRounds({
+  rounds,
+  gamesByRound,
+}: {
+  rounds: number[];
+  gamesByRound: Map<number, GameWithTeams[]>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const totalGames = rounds.reduce(
+    (sum, r) => sum + (gamesByRound.get(r)?.length || 0),
+    0
+  );
+
+  return (
+    <section>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-lg font-semibold text-[#5A7A99] hover:text-[#1B365D] transition-colors"
+      >
+        <svg
+          className={`w-5 h-5 transition-transform ${expanded ? "rotate-90" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        Completed Rounds
+        <span className="text-sm font-normal text-[#5A7A99]">
+          ({totalGames} game{totalGames !== 1 ? "s" : ""})
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="mt-6 space-y-10">
+          {rounds.map((round) => (
+            <section key={round}>
+              <h3 className="text-base font-semibold mb-4 text-[#5A7A99]">
+                {ROUND_NAMES[round] || `Round ${round}`}
+              </h3>
+              <GameGrid games={gamesByRound.get(round) || []} />
+            </section>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
