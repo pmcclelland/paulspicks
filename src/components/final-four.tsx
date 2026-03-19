@@ -26,6 +26,7 @@ function FinalFourGame({
   onPick,
   disabled,
   label,
+  swapTeams = false,
 }: {
   game: GameData;
   teams: Map<number, TeamData>;
@@ -33,9 +34,16 @@ function FinalFourGame({
   onPick: (gameId: number, teamId: number) => void;
   disabled: boolean;
   label: string;
+  swapTeams?: boolean;
 }) {
-  const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
-  const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
+  const rawTeam1 = game.team1Id ? teams.get(game.team1Id) || null : null;
+  const rawTeam2 = game.team2Id ? teams.get(game.team2Id) || null : null;
+  const team1 = swapTeams ? rawTeam2 : rawTeam1;
+  const team2 = swapTeams ? rawTeam1 : rawTeam2;
+  const team1Id = swapTeams ? game.team2Id : game.team1Id;
+  const team2Id = swapTeams ? game.team1Id : game.team2Id;
+  const topScore = swapTeams ? game.team2Score : game.team1Score;
+  const bottomScore = swapTeams ? game.team1Score : game.team2Score;
   const result: GameResult | undefined =
     game.status !== "scheduled"
       ? {
@@ -86,11 +94,11 @@ function FinalFourGame({
       </span>
       <div className="w-56 rounded-lg border-2 border-border bg-card shadow-md overflow-hidden">
         <div className={`border-l-3 ${getHighlight(team1?.id)}`}>
-          {renderTeam(team1, result?.team1Score ?? null, game.team1Id)}
+          {renderTeam(team1, topScore, team1Id)}
         </div>
         <div className="border-t border-border" />
         <div className={`border-l-3 ${getHighlight(team2?.id)}`}>
-          {renderTeam(team2, result?.team2Score ?? null, game.team2Id)}
+          {renderTeam(team2, bottomScore, team2Id)}
         </div>
       </div>
     </div>
@@ -120,7 +128,7 @@ export default function FinalFour({
       <CardContent className="px-4 pb-4">
         <div className="flex flex-col items-center gap-5">
           <div className="flex flex-col lg:flex-row items-center gap-5">
-            {/* Semi 1 */}
+            {/* Semi 1: East (top) vs South (bottom) — swap so East's team is on top */}
             {semis[0] && (
               <FinalFourGame
                 game={semis[0]}
@@ -129,6 +137,7 @@ export default function FinalFour({
                 onPick={onPick}
                 disabled={disabled}
                 label="Semifinal 1"
+                swapTeams
               />
             )}
 
@@ -165,7 +174,7 @@ export default function FinalFour({
               </div>
             )}
 
-            {/* Semi 2 */}
+            {/* Semi 2: West (top) vs Midwest (bottom) — swap so West's team is on top */}
             {semis[1] && (
               <FinalFourGame
                 game={semis[1]}
@@ -174,6 +183,7 @@ export default function FinalFour({
                 onPick={onPick}
                 disabled={disabled}
                 label="Semifinal 2"
+                swapTeams
               />
             )}
           </div>
