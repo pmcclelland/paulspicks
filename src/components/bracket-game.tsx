@@ -366,6 +366,23 @@ type TeamDetailsData = {
   kenpomAdjORank: number | null;
   kenpomAdjD: string | null;
   kenpomAdjDRank: number | null;
+  quadRecord: { q1: string; q2: string; q3: string; q4: string } | null;
+  notableWins: Array<{
+    opponent: string;
+    opponentLogo: string | null;
+    opponentRank: number;
+    score: string;
+    win: boolean;
+    date: string;
+  }>;
+  notableLosses: Array<{
+    opponent: string;
+    opponentLogo: string | null;
+    opponentRank: number;
+    score: string;
+    win: boolean;
+    date: string;
+  }>;
 };
 
 function TeamDetailsSection({ team }: { team: TeamData }) {
@@ -486,6 +503,75 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
                         title={`${g.win ? "W" : "L"} ${g.score} vs ${g.opponent}`}
                       >
                         {g.win ? "W" : "L"}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quad Record */}
+              {data.quadRecord && (
+                <div>
+                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                    Quad Record
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 text-center">
+                    {(["q1", "q2", "q3", "q4"] as const).map((q, i) => {
+                      const val = data.quadRecord![q];
+                      const [w] = val.split("-").map(Number);
+                      return (
+                        <div key={q} className="bg-[#EFF5FA] rounded px-1.5 py-1">
+                          <div className={`text-xs font-bold ${w > 0 && i === 0 ? "text-green-600" : "text-[#1B365D]"}`}>
+                            {val}
+                          </div>
+                          <div className="text-[8px] text-[#5A7A99] font-semibold">Q{i + 1}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Notable Wins */}
+              {data.notableWins.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">
+                    Notable Wins
+                  </div>
+                  <div className="space-y-0.5">
+                    {data.notableWins.map((g, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-green-600 font-bold w-4">W</span>
+                        {g.opponentLogo && (
+                          <img src={g.opponentLogo} alt="" className="w-3.5 h-3.5 object-contain" />
+                        )}
+                        <span className="text-[#1B365D] font-medium truncate flex-1">
+                          #{g.opponentRank} {g.opponent}
+                        </span>
+                        <span className="text-[#5A7A99] font-mono text-[10px] flex-shrink-0">{g.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notable Losses */}
+              {data.notableLosses.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">
+                    Notable Losses
+                  </div>
+                  <div className="space-y-0.5">
+                    {data.notableLosses.map((g, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-red-500 font-bold w-4">L</span>
+                        {g.opponentLogo && (
+                          <img src={g.opponentLogo} alt="" className="w-3.5 h-3.5 object-contain" />
+                        )}
+                        <span className="text-[#1B365D] font-medium truncate flex-1">
+                          #{g.opponentRank} {g.opponent}
+                        </span>
+                        <span className="text-[#5A7A99] font-mono text-[10px] flex-shrink-0">{g.score}</span>
                       </div>
                     ))}
                   </div>
