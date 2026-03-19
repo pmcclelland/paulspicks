@@ -479,17 +479,17 @@ export default function BracketView({
           <div className="flex items-stretch gap-2">
             {/* ── Left half: headers + regions ── */}
             <div className="flex flex-col flex-shrink-0">
-              {/* Round headers (LTR) — R1 is wider to include inline connector */}
+              {/* Round headers (LTR) */}
               <div className="flex mb-4">
                 {[
-                  { name: "ROUND 1", dates: "Mar 19 – 20", width: "w-64" },
-                  { name: "ROUND 2", dates: "Mar 21 – 22", width: "w-56" },
-                  { name: "SWEET 16", dates: "Mar 26 – 27", width: "w-56" },
-                  { name: "ELITE 8", dates: "Mar 28 – 29", width: "w-56" },
+                  { name: "ROUND 1", dates: "Mar 19 – 20" },
+                  { name: "ROUND 2", dates: "Mar 21 – 22" },
+                  { name: "SWEET 16", dates: "Mar 26 – 27" },
+                  { name: "ELITE 8", dates: "Mar 28 – 29" },
                 ].map((h, i) => (
                   <div key={h.name} className="flex items-center">
                     {i > 0 && <div className="w-8 flex-shrink-0" />}
-                    <div className={`${h.width} flex-shrink-0`}>
+                    <div className="w-56 flex-shrink-0">
                       <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
                         <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
                           {h.name}
@@ -552,19 +552,17 @@ export default function BracketView({
 
             {/* ── Right half: headers + regions ── */}
             <div className="flex flex-col flex-shrink-0">
-              {/* Round headers (RTL — E8 nearest center, R1 on far right)
-                   Connectors in RTL sit to the LEFT of each game column,
-                   so spacers go before (left of) each non-R1 pill */}
+              {/* Round headers (RTL — E8 nearest center, R1 on far right) */}
               <div className="flex flex-row-reverse mb-4">
                 {[
-                  { name: "ROUND 1", dates: "Mar 19 – 20", width: "w-64" },
-                  { name: "ROUND 2", dates: "Mar 21 – 22", width: "w-56" },
-                  { name: "SWEET 16", dates: "Mar 26 – 27", width: "w-56" },
-                  { name: "ELITE 8", dates: "Mar 28 – 29", width: "w-56" },
+                  { name: "ROUND 1", dates: "Mar 19 – 20" },
+                  { name: "ROUND 2", dates: "Mar 21 – 22" },
+                  { name: "SWEET 16", dates: "Mar 26 – 27" },
+                  { name: "ELITE 8", dates: "Mar 28 – 29" },
                 ].map((h, i) => (
                   <div key={h.name} className="flex items-center">
                     {i > 0 && <div className="w-8 flex-shrink-0" />}
-                    <div className={`${h.width} flex-shrink-0`}>
+                    <div className="w-56 flex-shrink-0">
                       <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
                         <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
                           {h.name}
@@ -574,6 +572,7 @@ export default function BracketView({
                         </div>
                       </div>
                     </div>
+                    {i === 0 && <div className="w-8 flex-shrink-0" />}
                   </div>
                 ))}
               </div>
