@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,63 @@ import FinalFour from "./final-four";
 import { type TeamData } from "./bracket-game";
 import { REGIONS } from "@/lib/bracket-utils";
 import { schoolName } from "@/lib/school-names";
+
+function Countdown({ targetDate }: { targetDate: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => setNow(new Date()), 1000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, []);
+
+  const diff = targetDate.getTime() - now.getTime();
+  if (diff <= 0) return null;
+
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  const urgent = diff < 3600000; // less than 1 hour
+
+  return (
+    <div className={`mx-4 rounded-lg px-4 py-3 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 ${
+      urgent ? "bg-red-50 border border-red-200" : "bg-[#EFF5FA] border border-[#BFD4E4]/50"
+    }`}>
+      <span className={`text-xs font-bold uppercase tracking-wider ${urgent ? "text-red-600" : "text-[#5A7A99]"}`}>
+        {urgent ? "Hurry! Brackets lock in" : "Time until tipoff"}
+      </span>
+      <div className="flex items-center gap-1.5">
+        {days > 0 && (
+          <TimeUnit value={days} label="d" urgent={urgent} />
+        )}
+        <TimeUnit value={hours} label="h" urgent={urgent} />
+        <TimeUnit value={minutes} label="m" urgent={urgent} />
+        <TimeUnit value={seconds} label="s" urgent={urgent} />
+      </div>
+    </div>
+  );
+}
+
+function TimeUnit({ value, label, urgent }: { value: number; label: string; urgent: boolean }) {
+  return (
+    <div className={`flex items-baseline gap-0.5 rounded-md px-2 py-1 ${
+      urgent ? "bg-red-100" : "bg-white"
+    }`}>
+      <span className={`text-lg font-bold font-mono tabular-nums leading-none ${
+        urgent ? "text-red-700" : "text-[#1B365D]"
+      }`}>
+        {String(value).padStart(2, "0")}
+      </span>
+      <span className={`text-[10px] font-bold uppercase ${
+        urgent ? "text-red-500" : "text-[#5A7A99]"
+      }`}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 type BracketViewProps = {
   games: GameData[];
@@ -354,6 +411,20 @@ export default function BracketView({
     [effectiveGames]
   );
 
+  // Find earliest R1 game start time for countdown
+  const firstTipoff = useMemo(() => {
+    let earliest: Date | null = null;
+    for (const game of games) {
+      if (game.round === 1 && game.startTime) {
+        const d = new Date(game.startTime);
+        if (!earliest || d < earliest) earliest = d;
+      }
+    }
+    return earliest;
+  }, [games]);
+
+  const showCountdown = !locked && firstTipoff && firstTipoff.getTime() > Date.now();
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header bar */}
@@ -389,6 +460,8 @@ export default function BracketView({
           </div>
         )}
       </div>
+
+      {showCountdown && firstTipoff && <Countdown targetDate={firstTipoff} />}
 
       {locked && (
         <div className="mx-4 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
