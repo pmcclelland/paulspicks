@@ -669,19 +669,19 @@ export default function BracketGame({
 
   return (
     <>
-      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border relative ${
+      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border ${
         isLive ? "border-green-400 ring-1 ring-green-400/20"
           : upsetInfo.level === "alert" ? "border-amber-500 ring-1 ring-amber-500/30"
           : upsetInfo.level === "potential" ? "border-amber-300 ring-1 ring-amber-300/30"
           : "border-[#BFD4E4]/80"
       }`}>
         {upsetInfo.level && !isLive && (
-          <div className={`absolute -top-2.5 left-2 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider leading-none ${
+          <div className={`text-[9px] font-extrabold text-center py-0.5 uppercase tracking-widest ${
             upsetInfo.level === "alert"
               ? "bg-amber-500 text-white"
-              : "bg-amber-200 text-amber-700"
+              : "bg-amber-100 text-amber-700"
           }`}>
-            {upsetInfo.level === "alert" ? "Upset Alert" : "Upset Watch"}
+            {upsetInfo.level === "alert" ? "Upset Alert" : "Upset Potential"}
           </div>
         )}
         {isLive && (
