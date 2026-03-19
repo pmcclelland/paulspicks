@@ -28,8 +28,10 @@ export async function GET(request: NextRequest) {
     const targetUserId = requestedUserId ? parseInt(requestedUserId) : currentUserId;
     const isViewingOther = targetUserId !== currentUserId;
 
-    // If viewing another user's bracket, picks must be locked
-    if (isViewingOther) {
+    const isSpectator = session.user.isSpectator;
+
+    // If viewing another user's bracket, picks must be locked (unless spectator)
+    if (isViewingOther && !isSpectator) {
       const lockedState = await db
         .select()
         .from(appState)
@@ -84,7 +86,8 @@ export async function GET(request: NextRequest) {
       locked,
       hasLiveGames,
       viewingUser,
-      readOnly: isViewingOther,
+      readOnly: isViewingOther || isSpectator,
+      isSpectator,
     });
   } catch (error) {
     console.error("Bracket GET error:", error);
@@ -101,6 +104,13 @@ export async function POST(request: Request) {
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (session.user.isSpectator) {
+      return NextResponse.json(
+        { error: "Spectators cannot submit picks" },
+        { status: 403 }
+      );
     }
 
     const lockedState = await db

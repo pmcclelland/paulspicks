@@ -61,6 +61,11 @@ export default function NavBar() {
                   <span className="text-sm font-medium text-white/70">
                     {session.user.name}
                   </span>
+                  {session.user.isSpectator && (
+                    <span className="text-[10px] font-medium text-white/40 bg-white/[0.06] px-1.5 py-0.5 rounded">
+                      Spectator
+                    </span>
+                  )}
                 </div>
                 <Button
                   size="sm"
@@ -137,6 +142,11 @@ export default function NavBar() {
                       </span>
                     </div>
                     <span className="text-sm text-white/60">{session.user.name}</span>
+                    {session.user.isSpectator && (
+                      <span className="text-[10px] font-medium text-white/40 bg-white/[0.06] px-1.5 py-0.5 rounded">
+                        Spectator
+                      </span>
+                    )}
                   </div>
                   <button
                     className="block w-full text-left rounded-lg px-4 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/[0.06] hover:text-white"

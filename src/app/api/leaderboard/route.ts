@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, or, isNull } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const allUsers = await db.select().from(schema.users);
+    const allUsers = await db.select().from(schema.users)
+      .where(or(eq(schema.users.isSpectator, 0), isNull(schema.users.isSpectator)));
 
     const allPicks = await db
       .select({

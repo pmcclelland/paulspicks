@@ -55,6 +55,9 @@ export default function RegisterPage() {
         return;
       }
 
+      const data = await res.json();
+      const isSpectator = data.isSpectator;
+
       // Auto sign in after registration
       const result = await signIn("credentials", {
         email,
@@ -68,7 +71,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/bracket");
+      router.push(isSpectator ? "/leaderboard" : "/bracket");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
@@ -85,16 +88,19 @@ export default function RegisterPage() {
             Join the Pool
           </CardTitle>
           <CardDescription>
-            Create your account to start filling out your bracket
+            Create your account to follow along with the tournament
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pb-6">
             {error && (
               <div className="rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
+            <div className="rounded-lg bg-[#EFF5FA] border border-[#BFD4E4]/50 px-4 py-3 text-sm text-[#5A7A99]">
+              The tournament is underway! New accounts join as spectators — you can view all brackets, scores, and the leaderboard.
+            </div>
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -142,7 +148,7 @@ export default function RegisterPage() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
             <Button
               type="submit"
               className="w-full bg-[#F4793B] hover:bg-[#E06830] text-white"

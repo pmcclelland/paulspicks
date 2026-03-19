@@ -8,11 +8,13 @@ declare module "next-auth" {
       email: string;
       name: string;
       isAdmin: boolean;
+      isSpectator: boolean;
     } & DefaultSession["user"];
   }
 
   interface User {
     isAdmin?: boolean;
+    isSpectator?: boolean;
   }
 }
 
@@ -20,5 +22,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     isAdmin?: boolean;
+    isSpectator?: boolean;
   }
 }

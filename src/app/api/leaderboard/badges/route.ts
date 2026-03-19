@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or, isNull } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,8 @@ export async function GET() {
     const allTeams = await db.select().from(schema.teams);
     const allUsers = await db
       .select({ id: schema.users.id, name: schema.users.name })
-      .from(schema.users);
+      .from(schema.users)
+      .where(or(eq(schema.users.isSpectator, 0), isNull(schema.users.isSpectator)));
 
     const userMap = new Map(allUsers.map((u) => [u.id, u.name]));
     const teamMap = new Map(allTeams.map((t) => [t.id, t]));

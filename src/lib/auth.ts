@@ -43,6 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           isAdmin: user.isAdmin === 1,
+          isSpectator: user.isSpectator === 1,
         };
       },
     }),
@@ -52,6 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.isAdmin = (user as any).isAdmin;
+        token.isSpectator = (user as any).isSpectator;
       }
       return token;
     },
@@ -59,6 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.isAdmin = token.isAdmin as boolean;
+        session.user.isSpectator = token.isSpectator as boolean;
       }
       return session;
     },

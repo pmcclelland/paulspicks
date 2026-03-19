@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, appState } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -21,16 +22,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // Auto-spectator: if picks are locked (tournament started), new users are spectators
+    const lockedState = await db
+      .select()
+      .from(appState)
+      .where(eq(appState.key, "picks_locked"));
+    const picksLocked = lockedState.length > 0 && lockedState[0].value === "true";
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     await db.insert(users).values({
       email,
       name,
       passwordHash,
+      isSpectator: picksLocked ? 1 : 0,
     });
 
     return NextResponse.json(
-      { message: "User created" },
+      { message: "User created", isSpectator: picksLocked },
       { status: 201 }
     );
   } catch (error: any) {

@@ -16,6 +16,8 @@ export default function BracketPage() {
     picks: any[];
     locked: boolean;
     hasLiveGames: boolean;
+    readOnly?: boolean;
+    isSpectator?: boolean;
   } | null>(null);
   const initialPicksLoaded = useRef(false);
 
@@ -113,13 +115,23 @@ export default function BracketPage() {
 
   if (!bracketData) return null;
 
+  const isSpectator = bracketData.isSpectator || bracketData.readOnly && bracketData.picks.length === 0;
+
   return (
     <div className="py-6">
+      {isSpectator && (
+        <div className="mx-4 mb-4 rounded-lg bg-[#EFF5FA] border border-[#BFD4E4]/50 px-4 py-3 text-sm text-[#5A7A99]">
+          You are in spectator mode. View other users&apos; brackets from the{" "}
+          <a href="/leaderboard" className="font-medium text-[#F4793B] hover:underline">leaderboard</a>.
+        </div>
+      )}
       <BracketView
         games={bracketData.games}
         teams={bracketData.teams}
         initialPicks={bracketData.picks}
         locked={bracketData.locked}
+        readOnly={bracketData.readOnly}
+        title={isSpectator ? "Tournament Bracket" : undefined}
       />
     </div>
   );

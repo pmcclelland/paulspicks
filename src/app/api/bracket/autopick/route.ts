@@ -103,6 +103,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (session.user.isSpectator) {
+      return NextResponse.json({ error: "Spectators cannot submit picks" }, { status: 403 });
+    }
+
     const body = await request.json();
     const championTeamId: number = body.championTeamId;
 
