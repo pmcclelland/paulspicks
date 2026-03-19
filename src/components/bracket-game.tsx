@@ -340,6 +340,187 @@ function KenpomSection({
   );
 }
 
+type TeamDetailsData = {
+  record: string;
+  homeRecord: string | null;
+  awayRecord: string | null;
+  streak: string | null;
+  ppg: string | null;
+  oppg: string | null;
+  last10: Array<{
+    date: string;
+    opponent: string;
+    opponentLogo: string | null;
+    score: string;
+    win: boolean;
+    home: boolean;
+  }>;
+  keyPlayers: Array<{
+    name: string;
+    jersey: string;
+    position: string;
+    year: string;
+  }>;
+  kenpomRank: number | null;
+  kenpomAdjO: string | null;
+  kenpomAdjORank: number | null;
+  kenpomAdjD: string | null;
+  kenpomAdjDRank: number | null;
+};
+
+function TeamDetailsSection({ team }: { team: TeamData }) {
+  const [data, setData] = useState<TeamDetailsData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!expanded || fetched) return;
+    setFetched(true);
+    setLoading(true);
+    fetch(`/api/team-details?teamId=${team.id}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [team.id, expanded, fetched]);
+
+  return (
+    <div className="border-t border-[#BFD4E4]/50 pt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 w-full text-left"
+        type="button"
+      >
+        {team.logoUrl && (
+          <img src={team.logoUrl} alt="" className="w-5 h-5 object-contain" />
+        )}
+        <span className="text-xs font-bold text-[#1B365D] uppercase tracking-wider flex-1">
+          {schoolName(team.name)}
+        </span>
+        <svg
+          className={`w-4 h-4 text-[#5A7A99] transition-transform ${expanded ? "rotate-180" : ""}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-3">
+          {loading && (
+            <div className="space-y-2 animate-pulse">
+              <div className="h-3 bg-[#EFF5FA] rounded w-3/4" />
+              <div className="h-3 bg-[#EFF5FA] rounded w-1/2" />
+              <div className="h-16 bg-[#EFF5FA] rounded" />
+            </div>
+          )}
+
+          {data && (
+            <>
+              {/* Record & Stats */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
+                  <div className="text-xs font-bold text-[#1B365D]">{data.record}</div>
+                  <div className="text-[9px] text-[#5A7A99]">Record</div>
+                </div>
+                {data.streak && (
+                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
+                    <div className={`text-xs font-bold ${data.streak.endsWith("W") ? "text-green-600" : "text-red-600"}`}>
+                      {data.streak}
+                    </div>
+                    <div className="text-[9px] text-[#5A7A99]">Streak</div>
+                  </div>
+                )}
+                {data.ppg && data.oppg && (
+                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
+                    <div className="text-xs font-bold text-[#1B365D]">{data.ppg}/{data.oppg}</div>
+                    <div className="text-[9px] text-[#5A7A99]">PPG/Opp</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Home/Away */}
+              {(data.homeRecord || data.awayRecord) && (
+                <div className="flex gap-3 text-[10px] text-[#5A7A99]">
+                  {data.homeRecord && <span>Home: <span className="font-semibold text-[#1B365D]">{data.homeRecord}</span></span>}
+                  {data.awayRecord && <span>Away: <span className="font-semibold text-[#1B365D]">{data.awayRecord}</span></span>}
+                </div>
+              )}
+
+              {/* KenPom badges */}
+              {data.kenpomRank && (
+                <div className="flex gap-2 text-[10px]">
+                  <span className="bg-[#1B365D] text-white rounded-full px-2 py-0.5 font-bold">
+                    KenPom #{data.kenpomRank}
+                  </span>
+                  {data.kenpomAdjO && (
+                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2 py-0.5 font-semibold">
+                      Off #{data.kenpomAdjORank}
+                    </span>
+                  )}
+                  {data.kenpomAdjD && (
+                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2 py-0.5 font-semibold">
+                      Def #{data.kenpomAdjDRank}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Last 10 Games */}
+              {data.last10.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                    Last {data.last10.length} Games
+                  </div>
+                  <div className="flex gap-0.5">
+                    {data.last10.map((g, i) => (
+                      <div
+                        key={i}
+                        className={`w-full h-5 rounded-sm flex items-center justify-center text-[9px] font-bold ${
+                          g.win
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                        title={`${g.win ? "W" : "L"} ${g.score} vs ${g.opponent}`}
+                      >
+                        {g.win ? "W" : "L"}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Key Players */}
+              {data.keyPlayers.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                    Key Players
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    {data.keyPlayers.slice(0, 6).map((p, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-[#5A7A99] font-mono w-4 text-right">#{p.jersey}</span>
+                        <span className="text-[#1B365D] font-medium truncate">{p.name}</span>
+                        <span className="text-[#5A7A99] text-[9px] ml-auto flex-shrink-0">{p.position}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!loading && !data && (
+            <p className="text-xs text-[#5A7A99] italic">Team details unavailable</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnalysisSection({ gameId }: { gameId?: number }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -405,7 +586,7 @@ function InfoModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+        className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-[#1B365D] px-5 py-4 flex items-center justify-between">
@@ -465,7 +646,7 @@ function InfoModal({
           ))}
         </div>
 
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto">
           {activeTab === "matchup" ? (
             <>
               <div className="flex flex-col gap-3">
@@ -544,6 +725,12 @@ function InfoModal({
                   )}
                 </div>
               )}
+
+              {/* Team Details (expandable) */}
+              <div className="mt-4 space-y-1">
+                {team1 && <TeamDetailsSection team={team1} />}
+                {team2 && <TeamDetailsSection team={team2} />}
+              </div>
             </>
           ) : activeTab === "kenpom" ? (
             /* KenPom Tab */
