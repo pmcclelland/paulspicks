@@ -83,12 +83,21 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
     if (!dbGame) continue;
 
     const wasCompleted = dbGame.status === "final";
-    const team1DbId = event.team1
-      ? espnToDbId.get(event.team1.espnTeamId) ?? dbGame.team1Id
-      : dbGame.team1Id;
-    const team2DbId = event.team2
-      ? espnToDbId.get(event.team2.espnTeamId) ?? dbGame.team2Id
-      : dbGame.team2Id;
+
+    // Resolve ESPN team IDs to DB IDs, but skip TBD placeholder teams
+    // so we don't overwrite properly advanced winners with placeholders
+    const resolveTeamId = (espnTeam: { espnTeamId: string; name?: string } | null, fallback: number | null) => {
+      if (!espnTeam) return fallback;
+      const dbId = espnToDbId.get(espnTeam.espnTeamId);
+      if (dbId == null) return fallback;
+      // Check if this is a TBD placeholder team
+      const team = allTeams.find((t) => t.id === dbId);
+      if (team && (team.name === "TBD" || team.abbreviation === "TBD")) return fallback;
+      return dbId;
+    };
+
+    const team1DbId = resolveTeamId(event.team1, dbGame.team1Id);
+    const team2DbId = resolveTeamId(event.team2, dbGame.team2Id);
     const winnerDbId = event.winnerEspnTeamId
       ? espnToDbId.get(event.winnerEspnTeamId) ?? null
       : null;
