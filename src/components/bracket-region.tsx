@@ -81,22 +81,14 @@ export default function BracketRegion({
       </h3>
 
       {/* Games */}
-      <div className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} gap-3 items-center`}>
+      <div className={`flex ${direction === "rtl" ? "flex-row-reverse" : "flex-row"} gap-3 items-stretch`}>
         {roundNumbers.map((round) => {
           const roundGames = rounds.get(round) || [];
-          const gapClass =
-            round === 1
-              ? "gap-2"
-              : round === 2
-                ? "gap-12"
-                : round === 3
-                  ? "gap-28"
-                  : "gap-60";
 
           return (
             <div
               key={round}
-              className={`flex flex-col ${gapClass} justify-center`}
+              className={`flex flex-col ${round === 1 ? "gap-2" : ""} justify-center`}
             >
               {roundGames.map((game) => {
                 const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
@@ -134,7 +126,7 @@ export default function BracketRegion({
                   oddsProvider: game.oddsProvider,
                 };
 
-                return (
+                const gameElement = (
                   <BracketGame
                     key={game.id}
                     gameId={game.id}
@@ -149,6 +141,16 @@ export default function BracketRegion({
                     gameInfo={gameInfo}
                   />
                 );
+
+                // R2+ games: wrap in flex-1 to auto-center between feeder games
+                if (round > 1) {
+                  return (
+                    <div key={game.id} className="flex-1 flex items-center">
+                      {gameElement}
+                    </div>
+                  );
+                }
+                return gameElement;
               })}
             </div>
           );
