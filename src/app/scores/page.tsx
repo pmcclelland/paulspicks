@@ -18,8 +18,12 @@ type GameWithTeams = {
   broadcast: string | null;
   winnerTeamId: number | null;
   statusDetail: string | null;
+  spreadLine: string | null;
   spreadDetails: string | null;
+  moneylineTeam1: string | null;
+  moneylineTeam2: string | null;
   overUnder: string | null;
+  oddsProvider: string | null;
   team1: {
     id: number;
     name: string;
@@ -178,6 +182,13 @@ function GameGrid({ games }: { games: GameWithTeams[] }) {
           spreadDetails={game.spreadDetails}
           overUnder={game.overUnder}
           statusDetail={game.statusDetail}
+          gameId={game.id as number}
+          round={game.round}
+          region={game.region}
+          spreadLine={game.spreadLine}
+          moneylineTeam1={game.moneylineTeam1}
+          moneylineTeam2={game.moneylineTeam2}
+          oddsProvider={game.oddsProvider}
         />
       ))}
     </div>

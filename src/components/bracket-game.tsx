@@ -645,7 +645,7 @@ function AnalysisSection({ gameId }: { gameId?: number }) {
   );
 }
 
-function InfoModal({
+export function InfoModal({
   open,
   onClose,
   team1,
