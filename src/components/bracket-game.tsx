@@ -577,6 +577,29 @@ function InfoModal({
   upsetInfo?: { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number };
 }) {
   const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom">("matchup");
+  const [records, setRecords] = useState<{ team1?: string; team2?: string }>({});
+
+  useEffect(() => {
+    if (!open) return;
+    // Fetch records from ESPN via our lightweight proxy
+    async function fetchRecords() {
+      const ids = [team1?.id, team2?.id].filter(Boolean);
+      if (ids.length === 0) return;
+      const params = new URLSearchParams();
+      ids.forEach((id) => params.append("teamIds", String(id)));
+      try {
+        const res = await fetch(`/api/team-records?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRecords({
+            team1: team1 ? data[team1.id] : undefined,
+            team2: team2 ? data[team2.id] : undefined,
+          });
+        }
+      } catch {}
+    }
+    fetchRecords();
+  }, [open, team1, team2]);
 
   if (!open) return null;
 
@@ -653,6 +676,7 @@ function InfoModal({
                 {[team1, team2].map((team, i) => {
                   const score = i === 0 ? result?.team1Score : result?.team2Score;
                   const isWinner = result?.winnerTeamId === team?.id;
+                  const record = i === 0 ? records.team1 : records.team2;
                   return (
                     <div
                       key={team?.id ?? i}
@@ -670,6 +694,9 @@ function InfoModal({
                             {team ? schoolName(team.name) : "TBD"}
                           </span>
                         </div>
+                        {record && (
+                          <div className="text-[11px] text-[#5A7A99] ml-7">{record}</div>
+                        )}
                       </div>
                       {score !== null && score !== undefined && (
                         <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
