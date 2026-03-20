@@ -44,6 +44,7 @@ type BracketRegionProps = {
   disabled: boolean;
   direction: "ltr" | "rtl";
   eliminatedTeamIds?: Set<number>;
+  gameOdds?: Record<number, { team1Prob: number; team2Prob: number }>;
 };
 
 function renderGameCard(
@@ -53,7 +54,8 @@ function renderGameCard(
   onPick: (gameId: number, teamId: number) => void,
   disabled: boolean,
   direction: "ltr" | "rtl",
-  eliminatedTeamIds?: Set<number>
+  eliminatedTeamIds?: Set<number>,
+  gameOdds?: Record<number, { team1Prob: number; team2Prob: number }>
 ) {
   const team1 = game.team1Id ? teams.get(game.team1Id) || null : null;
   const team2 = game.team2Id ? teams.get(game.team2Id) || null : null;
@@ -105,6 +107,7 @@ function renderGameCard(
       team1Eliminated={!!team1 && !!eliminatedTeamIds?.has(team1.id)}
       team2Eliminated={!!team2 && !!eliminatedTeamIds?.has(team2.id)}
       bustedPickSlot={game.bustedPickSlot}
+      simProb={gameOdds?.[game.id]}
     />
   );
 }
@@ -151,6 +154,7 @@ export default function BracketRegion({
   disabled,
   direction,
   eliminatedTeamIds,
+  gameOdds,
 }: BracketRegionProps) {
   const rounds: Map<number, GameData[]> = new Map();
   for (const game of games) {
@@ -189,7 +193,7 @@ export default function BracketRegion({
             <div key={pi} className="flex flex-col gap-2">
               {pair.map((game) => (
                 <div key={game.id}>
-                  {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds)}
+                  {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds, gameOdds)}
                 </div>
               ))}
             </div>
@@ -210,7 +214,7 @@ export default function BracketRegion({
             <PairConnector direction={direction} />
             {/* This game */}
             <div className="flex items-center">
-              {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds)}
+              {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds, gameOdds)}
             </div>
           </div>
         ))}
@@ -241,7 +245,7 @@ export default function BracketRegion({
               <div className="flex flex-col gap-2">
                 {pair.map((game) => (
                   <div key={game.id}>
-                    {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds)}
+                    {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds, gameOdds)}
                   </div>
                 ))}
               </div>
@@ -258,7 +262,7 @@ export default function BracketRegion({
         <div key={`round-${round}`} className="flex flex-col justify-center flex-shrink-0">
           {roundGames.map((game) => (
             <div key={game.id} className="flex-1 flex items-center">
-              {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds)}
+              {renderGameCard(game, teams, userPicks, onPick, disabled, direction, eliminatedTeamIds, gameOdds)}
             </div>
           ))}
         </div>

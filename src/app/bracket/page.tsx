@@ -19,6 +19,7 @@ export default function BracketPage() {
     readOnly?: boolean;
     isSpectator?: boolean;
   } | null>(null);
+  const [gameOdds, setGameOdds] = useState<Record<number, { team1Prob: number; team2Prob: number }> | undefined>();
   const initialPicksLoaded = useRef(false);
 
   const fetchBracket = useCallback(async (isRefresh = false) => {
@@ -61,6 +62,11 @@ export default function BracketPage() {
 
     if (status === "authenticated") {
       fetchBracket(false);
+      // Fetch simulation odds in parallel (non-blocking)
+      fetch("/api/simulate")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data?.gameOdds) setGameOdds(data.gameOdds); })
+        .catch(() => {});
     }
   }, [status, router, fetchBracket]);
 
@@ -132,6 +138,7 @@ export default function BracketPage() {
         locked={bracketData.locked}
         readOnly={bracketData.readOnly}
         title={isSpectator ? "Tournament Bracket" : undefined}
+        gameOdds={gameOdds}
       />
     </div>
   );

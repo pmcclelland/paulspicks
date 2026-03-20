@@ -20,6 +20,7 @@ export default function UserBracketPage({ params }: { params: Promise<{ userId: 
     hasLiveGames: boolean;
     viewingUser: { id: number; name: string } | null;
   } | null>(null);
+  const [gameOdds, setGameOdds] = useState<Record<number, { team1Prob: number; team2Prob: number }> | undefined>();
 
   const fetchBracket = useCallback(async (isRefresh = false) => {
     try {
@@ -62,6 +63,11 @@ export default function UserBracketPage({ params }: { params: Promise<{ userId: 
         return;
       }
       fetchBracket(false);
+      // Fetch simulation odds in parallel (non-blocking)
+      fetch("/api/simulate")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data?.gameOdds) setGameOdds(data.gameOdds); })
+        .catch(() => {});
     }
   }, [status, router, fetchBracket, session, userId]);
 
@@ -133,6 +139,7 @@ export default function UserBracketPage({ params }: { params: Promise<{ userId: 
         locked={true}
         readOnly={true}
         title={`${userName}'s Bracket`}
+        gameOdds={gameOdds}
       />
     </div>
   );

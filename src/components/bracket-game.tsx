@@ -49,6 +49,8 @@ type BracketGameProps = {
   team2Eliminated?: boolean;
   /** The user's pick is for an eliminated team not in either slot — this indicates which slot it belongs to */
   bustedPickSlot?: "team1" | "team2" | null;
+  /** Monte Carlo simulation win probability for each team */
+  simProb?: { team1Prob: number; team2Prob: number };
 };
 
 import { schoolName } from "@/lib/school-names";
@@ -693,6 +695,7 @@ export function InfoModal({
   result,
   gameInfo,
   upsetInfo,
+  simProb,
 }: {
   open: boolean;
   onClose: () => void;
@@ -701,6 +704,7 @@ export function InfoModal({
   result?: GameResult;
   gameInfo?: GameInfo;
   upsetInfo?: { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number };
+  simProb?: { team1Prob: number; team2Prob: number };
 }) {
   const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom">("matchup");
   const [records, setRecords] = useState<{ team1?: string; team2?: string }>({});
@@ -803,6 +807,10 @@ export function InfoModal({
                   const score = i === 0 ? result?.team1Score : result?.team2Score;
                   const isWinner = result?.winnerTeamId === team?.id;
                   const record = i === 0 ? records.team1 : records.team2;
+                  const isFinalResult = result?.status === "final";
+                  const teamSimPct = simProb && team1 && team2 && !isFinalResult
+                    ? Math.round((i === 0 ? simProb.team1Prob : simProb.team2Prob) * 100)
+                    : undefined;
                   return (
                     <div
                       key={team?.id ?? i}
@@ -819,6 +827,13 @@ export function InfoModal({
                           <span className={`text-base font-semibold truncate ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
                             {team ? schoolName(team.name) : "TBD"}
                           </span>
+                          {teamSimPct !== undefined && (
+                            <span className={`text-[11px] font-bold tabular-nums ${
+                              teamSimPct >= 50 ? "text-[#1B365D]/40" : "text-[#F4793B]/50"
+                            }`}>
+                              {teamSimPct}%
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end flex-shrink-0">
@@ -835,6 +850,34 @@ export function InfoModal({
                   );
                 })}
               </div>
+
+              {/* Simulation probability bar */}
+              {simProb && team1 && team2 && result?.status !== "final" && (() => {
+                const pct1 = Math.round(simProb.team1Prob * 100);
+                const pct2 = 100 - pct1;
+                return (
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#5A7A99]">
+                      <span>Simulation Win Probability</span>
+                      <span className="font-normal normal-case tracking-normal text-[#5A7A99]/60">10k sims</span>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-[#1B365D] transition-all duration-300"
+                        style={{ width: `${pct1}%` }}
+                      />
+                      <div
+                        className="bg-[#F4793B] transition-all duration-300"
+                        style={{ width: `${pct2}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-[#1B365D]">{schoolName(team1.name)} {pct1}%</span>
+                      <span className="text-[#F4793B]">{pct2}% {schoolName(team2.name)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {result?.status === "in_progress" && (
                 <div className="mt-4 flex items-center gap-2 justify-center">
@@ -928,6 +971,7 @@ function TeamRow({
   pickedTeamId,
   result,
   isBusted,
+  simPct,
 }: {
   team: TeamData | null;
   score: number | null;
@@ -939,6 +983,7 @@ function TeamRow({
   pickedTeamId: number | undefined;
   result?: GameResult;
   isBusted?: boolean;
+  simPct?: number;
 }) {
   if (!team) {
     return (
@@ -951,7 +996,7 @@ function TeamRow({
 
   return (
     <button
-      className={`flex items-center w-full px-3 py-2.5 h-10 text-sm transition-colors ${
+      className={`relative flex items-center w-full px-3 py-2.5 h-10 text-sm transition-colors ${
         disabled ? "cursor-default" : "cursor-pointer hover:bg-[#EFF5FA]"
       } ${isPicked ? "font-bold" : "font-medium"} ${
         isEliminated ? "text-[#5A7A99]/50 line-through" : "text-[#1B365D]"
@@ -960,7 +1005,16 @@ function TeamRow({
       disabled={disabled && !isPicked}
       type="button"
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
+      {/* Sim probability fill — visible on group hover */}
+      {simPct !== undefined && (
+        <div
+          className="absolute inset-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+          style={{
+            background: `linear-gradient(90deg, ${simPct >= 50 ? "rgba(27,54,93,0.08)" : "rgba(244,121,59,0.08)"} ${simPct}%, transparent ${simPct}%)`,
+          }}
+        />
+      )}
+      <div className="flex items-center gap-2 flex-1 min-w-0 relative">
         {team.logoUrl ? (
           <img src={team.logoUrl} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
         ) : (
@@ -971,10 +1025,18 @@ function TeamRow({
         <span className="text-[#5A7A99] font-bold w-5 text-center flex-shrink-0 text-xs">{team.seed}</span>
         <span className="truncate">{schoolName(team.name)}</span>
       </div>
-      {score !== null && (
-        <span className="font-mono font-bold ml-1.5 flex-shrink-0 tabular-nums">{score}</span>
+      {/* Sim percentage — fades in on hover */}
+      {simPct !== undefined && (
+        <span className={`ml-1 flex-shrink-0 text-[10px] font-bold tabular-nums opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
+          simPct >= 50 ? "text-[#1B365D]/50" : "text-[#F4793B]/60"
+        }`}>
+          {simPct}%
+        </span>
       )}
-      <div className="ml-1.5 flex-shrink-0">
+      {score !== null && (
+        <span className="font-mono font-bold ml-1.5 flex-shrink-0 tabular-nums relative">{score}</span>
+      )}
+      <div className="ml-1.5 flex-shrink-0 relative">
         <PickIcon team={team} pickedTeamId={pickedTeamId} result={result} isBusted={isBusted} />
       </div>
     </button>
@@ -994,6 +1056,7 @@ export default function BracketGame({
   team1Eliminated,
   team2Eliminated,
   bustedPickSlot,
+  simProb,
 }: BracketGameProps) {
   const [showInfo, setShowInfo] = useState(false);
 
@@ -1003,6 +1066,12 @@ export default function BracketGame({
       : null;
 
   const isLive = result?.status === "in_progress";
+  const isFinal = result?.status === "final";
+
+  // Compute sim percentages for each team row
+  const showSim = simProb && team1 && team2 && !isFinal;
+  const simPct1 = showSim ? Math.round(simProb.team1Prob * 100) : undefined;
+  const simPct2 = showSim ? (simPct1 !== undefined ? 100 - simPct1 : undefined) : undefined;
 
   const upsetInfo = team1 && team2 && gameInfo
     ? detectUpset(
@@ -1016,7 +1085,7 @@ export default function BracketGame({
 
   return (
     <>
-      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border ${
+      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border group ${
         isLive ? "border-green-400 ring-1 ring-green-400/20"
           : upsetInfo.level === "alert" ? "border-amber-500 ring-1 ring-amber-500/30"
           : upsetInfo.level === "potential" ? "border-amber-300 ring-1 ring-amber-300/30"
@@ -1058,6 +1127,7 @@ export default function BracketGame({
                   pickedTeamId={pickedTeamId}
                   result={result}
                   isBusted={(!!team1Eliminated && pickedTeamId === team1?.id) || bustedPickSlot === "team1"}
+                  simPct={simPct1}
                 />
               )}
             </div>
@@ -1077,6 +1147,7 @@ export default function BracketGame({
                   pickedTeamId={pickedTeamId}
                   result={result}
                   isBusted={(!!team2Eliminated && pickedTeamId === team2?.id) || bustedPickSlot === "team2"}
+                  simPct={simPct2}
                 />
               )}
             </div>
@@ -1104,6 +1175,7 @@ export default function BracketGame({
         result={result}
         gameInfo={gameInfo}
         upsetInfo={upsetInfo.level ? upsetInfo : undefined}
+        simProb={simProb}
       />
     </>
   );

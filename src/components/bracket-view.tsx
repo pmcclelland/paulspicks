@@ -74,6 +74,7 @@ type BracketViewProps = {
   locked: boolean;
   title?: string;
   readOnly?: boolean;
+  gameOdds?: Record<number, { team1Prob: number; team2Prob: number }>;
 };
 
 export default function BracketView({
@@ -83,6 +84,7 @@ export default function BracketView({
   locked,
   title = "Your Bracket",
   readOnly = false,
+  gameOdds,
 }: BracketViewProps) {
   const STORAGE_KEY = "paulspicks-bracket-draft";
 
@@ -550,6 +552,7 @@ export default function BracketView({
                     disabled={locked}
                     direction="ltr"
                     eliminatedTeamIds={eliminatedTeamIds}
+                    gameOdds={gameOdds}
                   />
                   <BracketRegion
                     regionName="South"
@@ -560,6 +563,7 @@ export default function BracketView({
                     disabled={locked}
                     direction="ltr"
                     eliminatedTeamIds={eliminatedTeamIds}
+                    gameOdds={gameOdds}
                   />
                 </div>
               </div>
@@ -586,6 +590,7 @@ export default function BracketView({
                     onPick={handlePick}
                     disabled={locked}
                     eliminatedTeamIds={eliminatedTeamIds}
+                    gameOdds={gameOdds}
                   />
                 </div>
               </div>
@@ -628,6 +633,7 @@ export default function BracketView({
                     disabled={locked}
                     direction="rtl"
                     eliminatedTeamIds={eliminatedTeamIds}
+                    gameOdds={gameOdds}
                   />
                   <BracketRegion
                     regionName="Midwest"
@@ -638,6 +644,7 @@ export default function BracketView({
                     disabled={locked}
                     direction="rtl"
                     eliminatedTeamIds={eliminatedTeamIds}
+                    gameOdds={gameOdds}
                   />
                 </div>
               </div>
@@ -671,6 +678,7 @@ export default function BracketView({
                   disabled={locked}
                   direction="ltr"
                   eliminatedTeamIds={eliminatedTeamIds}
+                  gameOdds={gameOdds}
                 />
               </div>
             </TabsContent>
@@ -685,6 +693,7 @@ export default function BracketView({
                 onPick={handlePick}
                 disabled={locked}
                 eliminatedTeamIds={eliminatedTeamIds}
+                gameOdds={gameOdds}
               />
             </div>
           </TabsContent>

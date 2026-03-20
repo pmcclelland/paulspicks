@@ -18,6 +18,7 @@ type FinalFourProps = {
   onPick: (gameId: number, teamId: number) => void;
   disabled: boolean;
   eliminatedTeamIds?: Set<number>;
+  gameOdds?: Record<number, { team1Prob: number; team2Prob: number }>;
 };
 
 function FinalFourGame({
@@ -29,6 +30,7 @@ function FinalFourGame({
   label,
   swapTeams = false,
   eliminatedTeamIds,
+  simProb,
 }: {
   game: GameData;
   teams: Map<number, TeamData>;
@@ -38,6 +40,7 @@ function FinalFourGame({
   label: string;
   swapTeams?: boolean;
   eliminatedTeamIds?: Set<number>;
+  simProb?: { team1Prob: number; team2Prob: number };
 }) {
   // Remap bustedPickSlot when teams are swapped
   const bustedPickSlot = swapTeams
@@ -76,12 +79,19 @@ function FinalFourGame({
     return "border-[#F4793B] bg-[#F4793B]/5";
   }
 
-  function renderTeam(team: TeamData | null, score: number | null, teamId: number | null, slot: "team1" | "team2") {
+  // Compute sim percentages for display
+  const showSim = simProb && team1 && team2 && result?.status !== "final";
+  const displayProb1 = showSim ? (swapTeams ? simProb.team2Prob : simProb.team1Prob) : 0;
+  const displayProb2 = showSim ? (swapTeams ? simProb.team1Prob : simProb.team2Prob) : 0;
+  const simPctTop = showSim ? Math.round(displayProb1 * 100) : undefined;
+  const simPctBottom = showSim ? (simPctTop !== undefined ? 100 - simPctTop : undefined) : undefined;
+
+  function renderTeam(team: TeamData | null, score: number | null, teamId: number | null, slot: "team1" | "team2", slotSimPct?: number) {
     const isEliminated = teamId ? eliminatedTeamIds?.has(teamId) : false;
     const isSlotBusted = bustedPickSlot === slot;
     return (
       <button
-        className={`flex items-center justify-between w-full px-3 py-2.5 text-sm transition-colors rounded-sm ${
+        className={`relative flex items-center justify-between w-full px-3 py-2.5 text-sm transition-colors rounded-sm ${
           disabled ? "cursor-default" : "cursor-pointer hover:bg-accent"
         } ${pickedTeamId === teamId ? "font-bold" : "font-medium"} ${
           isEliminated ? "text-[#5A7A99]/50 line-through" : ""
@@ -90,14 +100,31 @@ function FinalFourGame({
         disabled={disabled && pickedTeamId !== teamId}
         type="button"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Sim probability fill — visible on group hover */}
+        {slotSimPct !== undefined && (
+          <div
+            className="absolute inset-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+            style={{
+              background: `linear-gradient(90deg, ${slotSimPct >= 50 ? "rgba(27,54,93,0.08)" : "rgba(244,121,59,0.08)"} ${slotSimPct}%, transparent ${slotSimPct}%)`,
+            }}
+          />
+        )}
+        <div className="flex items-center gap-2 min-w-0 relative">
           {team?.logoUrl && (
             <img src={team.logoUrl} alt="" className={`w-6 h-6 object-contain ${isEliminated ? "opacity-40" : ""}`} />
           )}
           <span className="text-[#5A7A99] text-xs font-bold">{team?.seed}</span>
           <span className="truncate">{team ? schoolName(team.name) : "TBD"}</span>
         </div>
-        <div className="flex items-center gap-1 ml-2">
+        <div className="flex items-center gap-1 ml-2 relative">
+          {/* Sim percentage — fades in on hover */}
+          {slotSimPct !== undefined && (
+            <span className={`text-[10px] font-bold tabular-nums opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
+              slotSimPct >= 50 ? "text-[#1B365D]/50" : "text-[#F4793B]/60"
+            }`}>
+              {slotSimPct}%
+            </span>
+          )}
           {score !== null && (
             <span className="font-mono font-semibold">{score}</span>
           )}
@@ -116,13 +143,13 @@ function FinalFourGame({
       <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
         {label}
       </span>
-      <div className="w-56 rounded-lg border-2 border-border bg-card shadow-md overflow-hidden">
+      <div className="w-56 rounded-lg border-2 border-border bg-card shadow-md overflow-hidden group">
         <div className={`border-l-3 ${getHighlight(team1?.id, "team1")}`}>
-          {renderTeam(team1, topScore, team1Id, "team1")}
+          {renderTeam(team1, topScore, team1Id, "team1", simPctTop)}
         </div>
         <div className="border-t border-border" />
         <div className={`border-l-3 ${getHighlight(team2?.id, "team2")}`}>
-          {renderTeam(team2, bottomScore, team2Id, "team2")}
+          {renderTeam(team2, bottomScore, team2Id, "team2", simPctBottom)}
         </div>
       </div>
     </div>
@@ -136,6 +163,7 @@ export default function FinalFour({
   onPick,
   disabled,
   eliminatedTeamIds,
+  gameOdds,
 }: FinalFourProps) {
   const semis = games.filter((g) => g.round === 5).sort((a, b) => a.gameIndex - b.gameIndex);
   const championship = games.find((g) => g.round === 6);
@@ -164,6 +192,7 @@ export default function FinalFour({
                 label="Semifinal 1"
                 swapTeams
                 eliminatedTeamIds={eliminatedTeamIds}
+                simProb={gameOdds?.[semis[0].id]}
               />
             )}
 
@@ -178,6 +207,7 @@ export default function FinalFour({
                   disabled={disabled}
                   label="Championship"
                   eliminatedTeamIds={eliminatedTeamIds}
+                  simProb={gameOdds?.[championship.id]}
                 />
                 {championTeam && (() => {
                   const isChampEliminated = eliminatedTeamIds?.has(championTeam.id);
@@ -215,6 +245,7 @@ export default function FinalFour({
                 label="Semifinal 2"
                 swapTeams
                 eliminatedTeamIds={eliminatedTeamIds}
+                simProb={gameOdds?.[semis[1].id]}
               />
             )}
           </div>

@@ -243,6 +243,70 @@ export async function GET() {
   }
   injuredTeams.sort((a, b) => a.penalty - b.penalty); // most penalized first
 
+  // Compute per-game win probabilities from live simulation results
+  const gameOdds: Record<number, { team1Prob: number; team2Prob: number }> = {};
+  {
+    // Build a map of gameId -> { team1Id, team2Id } from actual game data
+    const gameTeams = new Map<number, { team1Id: number | null; team2Id: number | null }>();
+    for (const g of allGames) {
+      if (g.round >= 1) {
+        gameTeams.set(g.id, { team1Id: g.team1Id, team2Id: g.team2Id });
+      }
+    }
+
+    // Count wins per game
+    const gameWinCounts = new Map<number, Map<number, number>>();
+    for (const simWinners of liveSimResults) {
+      for (const [gameId, winnerId] of simWinners) {
+        if (!gameWinCounts.has(gameId)) gameWinCounts.set(gameId, new Map());
+        const counts = gameWinCounts.get(gameId)!;
+        counts.set(winnerId, (counts.get(winnerId) || 0) + 1);
+      }
+    }
+
+    // Convert to probabilities keyed by team1/team2 slot
+    for (const [gameId, winCounts] of gameWinCounts) {
+      const gt = gameTeams.get(gameId);
+      if (!gt) continue;
+
+      // For games with known teams, use team1Id/team2Id to assign slots
+      // For future-round games, the simulation fills in teams dynamically,
+      // so we just report the two most common winners as team1/team2
+      let team1Wins = 0;
+      let team2Wins = 0;
+      let totalWins = 0;
+
+      for (const [winnerId, count] of winCounts) {
+        totalWins += count;
+        if (gt.team1Id && winnerId === gt.team1Id) {
+          team1Wins += count;
+        } else if (gt.team2Id && winnerId === gt.team2Id) {
+          team2Wins += count;
+        }
+      }
+
+      // For future-round games where team1Id/team2Id are null,
+      // distribute wins proportionally among all winners
+      if (!gt.team1Id && !gt.team2Id && totalWins > 0) {
+        // Sort winners by frequency, assign top to team1, rest to team2
+        const sorted = Array.from(winCounts.entries()).sort((a, b) => b[1] - a[1]);
+        team1Wins = sorted[0]?.[1] || 0;
+        team2Wins = totalWins - team1Wins;
+      } else if ((!gt.team1Id || !gt.team2Id) && totalWins > 0) {
+        // One team known, one unknown — the "other" slot gets remaining wins
+        if (!gt.team1Id) team1Wins = totalWins - team2Wins;
+        if (!gt.team2Id) team2Wins = totalWins - team1Wins;
+      }
+
+      if (totalWins > 0) {
+        gameOdds[gameId] = {
+          team1Prob: team1Wins / totalWins,
+          team2Prob: team2Wins / totalWins,
+        };
+      }
+    }
+  }
+
   const responseData = {
     // Clean (from-scratch) predictions
     teamOdds: cleanTeamOdds,
@@ -250,6 +314,8 @@ export async function GET() {
     // Live (actuals-aware) predictions
     liveTeamOdds,
     liveUserProjections,
+    // Per-game win probabilities
+    gameOdds,
     // Meta
     simulationCount: SIM_COUNT,
     completedGames,
