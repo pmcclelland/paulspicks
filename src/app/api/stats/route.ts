@@ -96,13 +96,12 @@ export async function GET() {
     });
 
     // --- Seed Performance ---
+    // Only track seeds 1-16 (valid tournament seeds)
     const seedStats: Record<number, { wins: number; losses: number; teamsRemaining: number }> = {};
     for (let s = 1; s <= 16; s++) seedStats[s] = { wins: 0, losses: 0, teamsRemaining: 0 };
 
-    // Ensure all seeds present in data have entries
-    for (const team of allTeams) {
-      if (!seedStats[team.seed]) seedStats[team.seed] = { wins: 0, losses: 0, teamsRemaining: 0 };
-    }
+    // Filter to valid tournament teams (seeds 1-16)
+    const tournamentTeams = allTeams.filter((t) => t.seed >= 1 && t.seed <= 16);
 
     // Track eliminated teams
     const eliminatedTeamIds = new Set<number>();
@@ -116,9 +115,9 @@ export async function GET() {
       if (loser && seedStats[loser.seed]) seedStats[loser.seed].losses++;
     }
 
-    for (const team of allTeams) {
+    for (const team of tournamentTeams) {
       if (!eliminatedTeamIds.has(team.id)) {
-        if (seedStats[team.seed]) seedStats[team.seed].teamsRemaining++;
+        seedStats[team.seed].teamsRemaining++;
       }
     }
 
@@ -146,7 +145,7 @@ export async function GET() {
       teams: { name: string; abbreviation: string; seed: number; logoUrl: string | null; eliminated: boolean }[];
     }> = {};
 
-    for (const team of allTeams) {
+    for (const team of tournamentTeams) {
       const kp = getKenpom(team);
       const conf = kp?.conference || "Unknown";
       if (!conferenceData[conf]) {
@@ -323,7 +322,7 @@ export async function GET() {
     };
 
     // --- KenPom Insights ---
-    const remainingTeams = allTeams.filter((t) => !eliminatedTeamIds.has(t.id));
+    const remainingTeams = tournamentTeams.filter((t) => !eliminatedTeamIds.has(t.id));
     const remainingWithKenpom = remainingTeams
       .map((t) => {
         const kp = getKenpom(t);
