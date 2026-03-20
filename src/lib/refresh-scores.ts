@@ -96,8 +96,13 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
       return dbId;
     };
 
-    const team1DbId = resolveTeamId(event.team1, dbGame.team1Id);
-    const team2DbId = resolveTeamId(event.team2, dbGame.team2Id);
+    // For R1 games, accept ESPN team assignments.
+    // For R2+ games, only accept ESPN teams if the game is in progress or final
+    // (our advancement logic is the source of truth for future round matchups).
+    const acceptEspnTeams = dbGame.round === 1 || event.status === "in_progress" || event.status === "final";
+
+    const team1DbId = acceptEspnTeams ? resolveTeamId(event.team1, dbGame.team1Id) : dbGame.team1Id;
+    const team2DbId = acceptEspnTeams ? resolveTeamId(event.team2, dbGame.team2Id) : dbGame.team2Id;
     const winnerDbId = event.winnerEspnTeamId
       ? espnToDbId.get(event.winnerEspnTeamId) ?? null
       : null;
