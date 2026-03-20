@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { eq, and, ne, or, isNull } from "drizzle-orm";
+import { POINTS_PER_ROUND } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,13 @@ export async function GET() {
     const allPicks = await db
       .select({
         userId: schema.picks.userId,
+        gameId: schema.picks.gameId,
+        pickedTeamId: schema.picks.pickedTeamId,
         round: schema.games.round,
         pointsEarned: schema.picks.pointsEarned,
         isCorrect: schema.picks.isCorrect,
+        gameStatus: schema.games.status,
+        winnerTeamId: schema.games.winnerTeamId,
       })
       .from(schema.picks)
       .innerJoin(schema.games, eq(schema.picks.gameId, schema.games.id));
@@ -44,6 +49,16 @@ export async function GET() {
       });
     }
 
+    // Build set of eliminated teams (lost in a completed game)
+    const allGames = await db.select().from(schema.games);
+    const eliminatedTeamIds = new Set<number>();
+    for (const game of allGames) {
+      if (game.status === "final" && game.winnerTeamId && game.team1Id && game.team2Id) {
+        const loserId = game.winnerTeamId === game.team1Id ? game.team2Id : game.team1Id;
+        eliminatedTeamIds.add(loserId);
+      }
+    }
+
     // Aggregate per user
     const userMap = new Map<
       number,
@@ -52,6 +67,7 @@ export async function GET() {
         correctPicks: number;
         totalPicks: number;
         roundBreakdown: [number, number, number, number, number, number];
+        pointsRemaining: number;
       }
     >();
 
@@ -61,6 +77,7 @@ export async function GET() {
         correctPicks: 0,
         totalPicks: 0,
         roundBreakdown: [0, 0, 0, 0, 0, 0],
+        pointsRemaining: 0,
       });
     }
 
@@ -77,6 +94,11 @@ export async function GET() {
           entry.roundBreakdown[roundIndex] += pick.pointsEarned ?? 0;
         }
       }
+
+      // Points remaining: game not final and picked team still alive
+      if (pick.gameStatus !== "final" && !eliminatedTeamIds.has(pick.pickedTeamId)) {
+        entry.pointsRemaining += POINTS_PER_ROUND[pick.round ?? 1] ?? 0;
+      }
     }
 
     // Build leaderboard sorted by total points descending
@@ -91,6 +113,7 @@ export async function GET() {
           totalPicks: stats.totalPicks,
           roundBreakdown: stats.roundBreakdown,
           championPick: championMap.get(user.id) || null,
+          pointsRemaining: stats.pointsRemaining,
           rank: 0,
         };
       })

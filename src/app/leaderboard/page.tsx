@@ -19,6 +19,7 @@ type LeaderboardEntry = {
   totalPoints: number;
   roundPoints: [number, number, number, number, number, number];
   maxPossible?: number;
+  pointsRemaining?: number;
   championPick?: ChampionPick | null;
 };
 

@@ -38,10 +38,11 @@ type LeaderboardEntry = {
   totalPoints: number;
   roundPoints: [number, number, number, number, number, number];
   maxPossible?: number;
+  pointsRemaining?: number;
   championPick?: ChampionPick | null;
 };
 
-type SortField = "rank" | "totalPoints" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6";
+type SortField = "rank" | "totalPoints" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6" | "pointsRemaining";
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
@@ -109,6 +110,10 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
       case "r6":
         aVal = a.roundPoints[5];
         bVal = b.roundPoints[5];
+        break;
+      case "pointsRemaining":
+        aVal = a.pointsRemaining ?? 0;
+        bVal = b.pointsRemaining ?? 0;
         break;
       default:
         aVal = a.rank;
@@ -179,6 +184,14 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
               >
                 Champ{sortIcon("r6")}
               </TableHead>
+              {entries.some((e) => e.pointsRemaining !== undefined) && (
+                <TableHead
+                  className="cursor-pointer select-none text-right"
+                  onClick={() => handleSort("pointsRemaining")}
+                >
+                  Rem{sortIcon("pointsRemaining")}
+                </TableHead>
+              )}
               {entries.some((e) => e.maxPossible !== undefined) && (
                 <TableHead className="text-right">Max</TableHead>
               )}
@@ -251,6 +264,11 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
                   <TableCell className="text-right text-muted-foreground">
                     {entry.roundPoints[5]}
                   </TableCell>
+                  {entries.some((e) => e.pointsRemaining !== undefined) && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {entry.pointsRemaining ?? "-"}
+                    </TableCell>
+                  )}
                   {entries.some((e) => e.maxPossible !== undefined) && (
                     <TableCell className="text-right text-muted-foreground">
                       {entry.maxPossible ?? "-"}
