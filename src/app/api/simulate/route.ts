@@ -16,7 +16,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const CACHE_KEY = "simulation_cache_v3";
+const CACHE_KEY = "simulation_cache_v4";
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 const ROTOWIRE_URL = "https://www.rotowire.com/cbasketball/tables/injury-report.php?team=ALL&pos=ALL";
