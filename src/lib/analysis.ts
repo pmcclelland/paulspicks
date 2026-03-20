@@ -11,6 +11,13 @@ export type KenpomStats = {
   adjDRank: number;
 } | null;
 
+export type InjuryData = {
+  player: string;
+  position: string;
+  injury: string;
+  status: string;
+};
+
 export async function generateMatchupAnalysis(
   team1: { name: string; seed: number; region: string },
   team2: { name: string; seed: number; region: string },
@@ -22,7 +29,9 @@ export async function generateMatchupAnalysis(
   },
   round: number,
   kenpom1?: KenpomStats,
-  kenpom2?: KenpomStats
+  kenpom2?: KenpomStats,
+  injuries1?: InjuryData[],
+  injuries2?: InjuryData[]
 ): Promise<string> {
   const roundNames: Record<number, string> = {
     1: "Round of 64",
@@ -55,14 +64,26 @@ export async function generateMatchupAnalysis(
     kenpomContext = "\nKenPom Ratings:\n" + lines.join("\n");
   }
 
+  let injuryContext = "";
+  const injLines: string[] = [];
+  if (injuries1 && injuries1.length > 0) {
+    injLines.push(`${team1.name}: ${injuries1.map((i) => `${i.player} (${i.position}, ${i.injury} - ${i.status})`).join(", ")}`);
+  }
+  if (injuries2 && injuries2.length > 0) {
+    injLines.push(`${team2.name}: ${injuries2.map((i) => `${i.player} (${i.position}, ${i.injury} - ${i.status})`).join(", ")}`);
+  }
+  if (injLines.length > 0) {
+    injuryContext = "\nInjury Report:\n" + injLines.join("\n");
+  }
+
   const prompt = `Give a brief 2-3 sentence matchup analysis for this NCAA March Madness game:
 
 ${team1.name} (${team1.seed} seed) vs ${team2.name} (${team2.seed} seed)
 Round: ${roundNames[round] || `Round ${round}`}
 Region: ${team1.region}
-${oddsContext ? `Odds: ${oddsContext}` : "No odds available yet."}${kenpomContext}
+${oddsContext ? `Odds: ${oddsContext}` : "No odds available yet."}${kenpomContext}${injuryContext}
 
-Consider seed matchup history, the odds implications, KenPom efficiency ratings (especially offensive vs defensive matchups), and round context. Be concise and insightful. Do not use headers or bullet points — just a short paragraph.`;
+Consider seed matchup history, the odds implications, KenPom efficiency ratings (especially offensive vs defensive matchups), round context, and any injury impacts. Be concise and insightful. Do not use headers or bullet points — just a short paragraph.`;
 
   const message = await client.messages.create({
     model: "claude-haiku-4-5-20251001",

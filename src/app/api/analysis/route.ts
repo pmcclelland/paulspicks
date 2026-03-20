@@ -3,7 +3,19 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { games, teams, kenpomRankings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { generateMatchupAnalysis, type KenpomStats } from "@/lib/analysis";
+import { generateMatchupAnalysis, type KenpomStats, type InjuryData } from "@/lib/analysis";
+import { schoolName } from "@/lib/school-names";
+
+const ROTOWIRE_URL = "https://www.rotowire.com/cbasketball/tables/injury-report.php?team=ALL&pos=ALL";
+
+const ROTOWIRE_NAME_MAP: Record<string, string> = {
+  "Connecticut": "UConn",
+  "Central Florida": "UCF",
+  "Hawaii": "Hawai'i",
+  "Pennsylvania": "Penn",
+  "California Baptist": "Cal Baptist",
+  "LIU": "Long Island",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +71,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Look up KenPom data for both teams
-    const allKenpom = await db.select().from(kenpomRankings);
+    // Look up KenPom data and injuries for both teams
+    const [allKenpom, injuryRes] = await Promise.all([
+      db.select().from(kenpomRankings),
+      fetch(ROTOWIRE_URL).then((r) => r.ok ? r.json() : null).catch(() => null),
+    ]);
+
+    function getInjuries(teamName: string): InjuryData[] {
+      if (!Array.isArray(injuryRes)) return [];
+      const shortName = schoolName(teamName);
+      return injuryRes
+        .filter((entry: any) => (ROTOWIRE_NAME_MAP[entry.team] ?? entry.team) === shortName)
+        .map((entry: any) => ({
+          player: entry.player,
+          position: entry.position,
+          injury: entry.injury,
+          status: entry.status,
+        }));
+    }
 
     function findKenpom(teamName: string): KenpomStats {
       const lower = teamName.toLowerCase();
@@ -84,6 +112,9 @@ export async function GET(request: NextRequest) {
     const kenpom1 = findKenpom(team1.name);
     const kenpom2 = findKenpom(team2.name);
 
+    const injuries1 = getInjuries(team1.name);
+    const injuries2 = getInjuries(team2.name);
+
     const analysis = await generateMatchupAnalysis(
       { name: team1.name, seed: team1.seed, region: team1.region },
       { name: team2.name, seed: team2.seed, region: team2.region },
@@ -95,7 +126,9 @@ export async function GET(request: NextRequest) {
       },
       game.round,
       kenpom1,
-      kenpom2
+      kenpom2,
+      injuries1,
+      injuries2
     );
 
     const now = new Date().toISOString();
