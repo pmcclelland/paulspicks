@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import LeaderboardTable from "@/components/leaderboard-table";
 import UniquePicks from "@/components/unique-picks";
 import Badges from "@/components/badges";
+import { SocialBuzz } from "@/components/social-buzz";
 
 type ChampionPick = {
   teamName: string;
@@ -136,6 +137,13 @@ export default function LeaderboardPage() {
       {uniquePicks.length > 0 && <UniquePicks picks={uniquePicks} />}
 
       {badges.length > 0 && <Badges badges={badges} />}
+
+      <section>
+        <h2 className="text-lg font-semibold mb-4 text-[#1B365D]">
+          Tournament Buzz
+        </h2>
+        <SocialBuzz />
+      </section>
     </div>
   );
 }

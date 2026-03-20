@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { PlayInTeam } from "./bracket-region";
 import { fairProbabilities, formatOdds, detectUpset, type UpsetLevel } from "@/lib/odds";
+import { SocialBuzz } from "@/components/social-buzz";
 
 export type TeamData = {
   id: number;
@@ -706,7 +707,7 @@ export function InfoModal({
   upsetInfo?: { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number };
   simProb?: { team1Prob: number; team2Prob: number };
 }) {
-  const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom">("matchup");
+  const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom" | "buzz">("matchup");
   const [records, setRecords] = useState<{ team1?: string; team2?: string }>({});
 
   useEffect(() => {
@@ -783,6 +784,7 @@ export function InfoModal({
             { key: "matchup" as const, label: "Matchup" },
             { key: "kenpom" as const, label: "KenPom" },
             { key: "odds" as const, label: "Odds & AI" },
+            { key: "buzz" as const, label: "Buzz" },
           ]).map((tab) => (
             <button
               key={tab.key}
@@ -933,7 +935,7 @@ export function InfoModal({
           ) : activeTab === "kenpom" ? (
             /* KenPom Tab */
             <KenpomSection team1={team1} team2={team2} />
-          ) : (
+          ) : activeTab === "odds" ? (
             /* Odds & Analysis Tab */
             <div className="space-y-4">
               {gameInfo && (
@@ -941,6 +943,11 @@ export function InfoModal({
               )}
               {gameInfo && <OddsTable gameInfo={gameInfo} />}
               {gameInfo?.gameId && <AnalysisSection gameId={gameInfo.gameId} />}
+            </div>
+          ) : (
+            /* Buzz Tab */
+            <div>
+              <SocialBuzz gameId={gameInfo?.gameId} singleColumn />
             </div>
           )}
         </div>

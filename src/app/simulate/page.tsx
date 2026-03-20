@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Table,
   TableBody,
@@ -350,7 +351,267 @@ function InjuryImpactSection({ injuries }: { injuries: InjuredTeam[] }) {
   );
 }
 
+type WhatIfTeam = {
+  id: number;
+  name: string;
+  abbreviation: string;
+  seed: number;
+  logoUrl: string | null;
+};
+
+type WhatIfGame = {
+  gameId: number;
+  round: number;
+  region: string;
+  team1: WhatIfTeam | null;
+  team2: WhatIfTeam | null;
+  userPickedTeamId: number;
+  pointsIfCorrect: number;
+  cascadeLoss: number;
+  winProbability: number;
+  expectedValue: number;
+  roundName: string;
+};
+
+type WhatIfData = {
+  userId: number;
+  userName: string;
+  currentPoints: number;
+  currentRank: number;
+  maxPossiblePoints: number;
+  bestPossibleRank: number;
+  games: WhatIfGame[];
+};
+
+function WhatIfTab() {
+  const [data, setData] = useState<WhatIfData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/what-if");
+        if (res.ok) setData(await res.json());
+      } catch {
+        // Silent fail
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#F4793B] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <p className="text-[#5A7A99]">Could not load bracket analysis.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-[#5A7A99] uppercase tracking-wider mb-1">Current Points</p>
+            <p className="text-2xl font-bold text-[#1B365D]">{data.currentPoints}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-[#5A7A99] uppercase tracking-wider mb-1">Current Rank</p>
+            <p className="text-2xl font-bold text-[#1B365D]">#{data.currentRank}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-[#5A7A99] uppercase tracking-wider mb-1">Max Possible</p>
+            <p className="text-2xl font-bold text-[#F4793B]">{data.maxPossiblePoints}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-[#5A7A99] uppercase tracking-wider mb-1">Best Rank</p>
+            <p className="text-2xl font-bold text-green-600">#{data.bestPossibleRank}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {data.games.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-[#5A7A99]">No upcoming games with active picks.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <p className="text-sm text-[#5A7A99]">
+            Games sorted by impact. Green = safe picks, red/orange = vulnerable.
+          </p>
+
+          {/* Desktop Table */}
+          <Card className="hidden md:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Matchup</TableHead>
+                    <TableHead className="text-center">Round</TableHead>
+                    <TableHead className="text-center">Your Pick</TableHead>
+                    <TableHead className="text-right">If Win</TableHead>
+                    <TableHead className="text-right">If Lose</TableHead>
+                    <TableHead className="text-center">Win Prob</TableHead>
+                    <TableHead className="text-right">EV</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.games.map((game) => {
+                    const picked = game.userPickedTeamId === game.team1?.id ? game.team1 : game.team2;
+                    const isVulnerable = game.winProbability < 0.4 || game.cascadeLoss > game.pointsIfCorrect;
+                    const isSafe = game.winProbability >= 0.65 && game.cascadeLoss === 0;
+
+                    return (
+                      <TableRow key={game.gameId} className={isSafe ? "bg-green-50/50" : isVulnerable ? "bg-red-50/50" : ""}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {game.team1 && (
+                              <div className="flex items-center gap-1">
+                                {game.team1.logoUrl && <img src={game.team1.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+                                <span className={`text-xs ${game.userPickedTeamId === game.team1.id ? "font-bold text-[#1B365D]" : "text-[#5A7A99]"}`}>
+                                  {game.team1.abbreviation}
+                                </span>
+                              </div>
+                            )}
+                            <span className="text-[#BFD4E4] text-xs">vs</span>
+                            {game.team2 && (
+                              <div className="flex items-center gap-1">
+                                {game.team2.logoUrl && <img src={game.team2.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+                                <span className={`text-xs ${game.userPickedTeamId === game.team2.id ? "font-bold text-[#1B365D]" : "text-[#5A7A99]"}`}>
+                                  {game.team2.abbreviation}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-xs font-medium text-[#5A7A99]">{game.roundName}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {picked?.logoUrl && <img src={picked.logoUrl} alt="" className="w-4 h-4 object-contain" />}
+                            <span className="text-xs font-bold text-[#1B365D]">{picked?.abbreviation}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm font-bold text-green-600">
+                          +{game.pointsIfCorrect}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm font-bold text-red-500">
+                          {game.cascadeLoss > 0 ? `-${game.cascadeLoss + game.pointsIfCorrect}` : `-${game.pointsIfCorrect}`}
+                          {game.cascadeLoss > 0 && (
+                            <span className="text-[10px] text-red-400 ml-1">cascade</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <div className="w-12 h-1.5 bg-[#EFF5FA] rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  game.winProbability >= 0.65 ? "bg-green-500" :
+                                  game.winProbability >= 0.4 ? "bg-[#F4793B]" : "bg-red-500"
+                                }`}
+                                style={{ width: `${Math.round(game.winProbability * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-mono text-[#5A7A99]">
+                              {Math.round(game.winProbability * 100)}%
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right font-mono text-sm font-bold ${game.expectedValue >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {game.expectedValue >= 0 ? "+" : ""}{Math.round(game.expectedValue)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {data.games.map((game) => {
+              const picked = game.userPickedTeamId === game.team1?.id ? game.team1 : game.team2;
+              const isVulnerable = game.winProbability < 0.4 || game.cascadeLoss > game.pointsIfCorrect;
+              const isSafe = game.winProbability >= 0.65 && game.cascadeLoss === 0;
+
+              return (
+                <Card key={game.gameId} className={isSafe ? "border-green-200 bg-green-50/30" : isVulnerable ? "border-red-200 bg-red-50/30" : ""}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {game.team1 && (
+                          <div className="flex items-center gap-1">
+                            {game.team1.logoUrl && <img src={game.team1.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+                            <span className={`text-xs ${game.userPickedTeamId === game.team1.id ? "font-bold" : "text-[#5A7A99]"}`}>
+                              {game.team1.abbreviation}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-[#BFD4E4] text-xs">vs</span>
+                        {game.team2 && (
+                          <div className="flex items-center gap-1">
+                            {game.team2.logoUrl && <img src={game.team2.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+                            <span className={`text-xs ${game.userPickedTeamId === game.team2.id ? "font-bold" : "text-[#5A7A99]"}`}>
+                              {game.team2.abbreviation}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-medium text-[#5A7A99] uppercase">{game.roundName}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {picked?.logoUrl && <img src={picked.logoUrl} alt="" className="w-4 h-4 object-contain" />}
+                        <span className="text-xs font-bold text-[#1B365D]">Your pick: {picked?.abbreviation}</span>
+                      </div>
+                      <span className="text-xs font-mono text-[#5A7A99]">{Math.round(game.winProbability * 100)}% win</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-xs font-mono">
+                      <span className="text-green-600 font-bold">+{game.pointsIfCorrect}</span>
+                      <span className="text-red-500 font-bold">
+                        -{game.cascadeLoss + game.pointsIfCorrect}
+                        {game.cascadeLoss > 0 && <span className="text-[10px] text-red-400"> cascade</span>}
+                      </span>
+                      <span className={`font-bold ml-auto ${game.expectedValue >= 0 ? "text-green-600" : "text-red-500"}`}>
+                        EV: {game.expectedValue >= 0 ? "+" : ""}{Math.round(game.expectedValue)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function SimulatePage() {
+  const { data: session } = useSession();
   const [data, setData] = useState<SimulationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -544,6 +805,9 @@ export default function SimulatePage() {
           {hasActualResults && <TabsTrigger value="live">Live Odds</TabsTrigger>}
           <TabsTrigger value="clean">Pre-Tournament</TabsTrigger>
           <TabsTrigger value="pool">Pool Projections</TabsTrigger>
+          {session?.user && !session.user.isSpectator && (
+            <TabsTrigger value="whatif">My Bracket</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Live Odds — accounts for actual results */}
@@ -594,6 +858,18 @@ export default function SimulatePage() {
             onSort={(key) => toggleSort(setLiveUserSort, key, key !== "name")}
           />
         </TabsContent>
+
+        {/* My Bracket — What If analysis */}
+        {session?.user && !session.user.isSpectator && (
+          <TabsContent value="whatif">
+            <div className="mb-4">
+              <p className="text-sm text-[#5A7A99]">
+                Game-by-game impact analysis for your bracket picks. Shows points at stake and cascade risk.
+              </p>
+            </div>
+            <WhatIfTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

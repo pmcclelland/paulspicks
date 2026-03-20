@@ -39,6 +39,7 @@ export default function NavBar() {
             {[
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
+              { href: "/feed", label: "Feed" },
               { href: "/leaderboard", label: "Leaderboard" },
               { href: "/stats", label: "Stats" },
               { href: "/simulate", label: "Simulate" },
@@ -135,6 +136,7 @@ export default function NavBar() {
             {[
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
+              { href: "/feed", label: "Feed" },
               { href: "/leaderboard", label: "Leaderboard" },
               { href: "/stats", label: "Stats" },
               { href: "/simulate", label: "Simulate" },
