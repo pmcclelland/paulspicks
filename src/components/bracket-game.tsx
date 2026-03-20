@@ -45,6 +45,10 @@ type BracketGameProps = {
   direction?: "ltr" | "rtl";
   playInTeams?: PlayInTeam[] | null;
   gameInfo?: GameInfo;
+  team1Eliminated?: boolean;
+  team2Eliminated?: boolean;
+  /** The user's pick is for an eliminated team not in either slot — this indicates which slot it belongs to */
+  bustedPickSlot?: "team1" | "team2" | null;
 };
 
 import { schoolName } from "@/lib/school-names";
@@ -62,17 +66,21 @@ function PickIcon({
   team,
   pickedTeamId,
   result,
+  isBusted,
 }: {
   team: TeamData | null;
   pickedTeamId: number | undefined;
   result?: GameResult;
+  isBusted?: boolean;
 }) {
   if (!team) return <div className="w-5 h-5 flex-shrink-0" />;
 
   const isPicked = pickedTeamId === team.id;
   const isFinal = result?.status === "final";
   const isCorrect = isFinal && result?.winnerTeamId === team.id && isPicked;
-  const isWrong = isFinal && result?.winnerTeamId !== null && result?.winnerTeamId !== team.id && isPicked;
+  // Show red X if: wrong pick in a final game, OR slot is busted (picked team eliminated or orphaned)
+  const isWrong = (isFinal && result?.winnerTeamId !== null && result?.winnerTeamId !== team.id && isPicked)
+    || !!isBusted;
 
   if (isCorrect) {
     return (
@@ -919,6 +927,7 @@ function TeamRow({
   disabled,
   pickedTeamId,
   result,
+  isBusted,
 }: {
   team: TeamData | null;
   score: number | null;
@@ -929,6 +938,7 @@ function TeamRow({
   disabled: boolean;
   pickedTeamId: number | undefined;
   result?: GameResult;
+  isBusted?: boolean;
 }) {
   if (!team) {
     return (
@@ -965,7 +975,7 @@ function TeamRow({
         <span className="font-mono font-bold ml-1.5 flex-shrink-0 tabular-nums">{score}</span>
       )}
       <div className="ml-1.5 flex-shrink-0">
-        <PickIcon team={team} pickedTeamId={pickedTeamId} result={result} />
+        <PickIcon team={team} pickedTeamId={pickedTeamId} result={result} isBusted={isBusted} />
       </div>
     </button>
   );
@@ -981,6 +991,9 @@ export default function BracketGame({
   result,
   playInTeams,
   gameInfo,
+  team1Eliminated,
+  team2Eliminated,
+  bustedPickSlot,
 }: BracketGameProps) {
   const [showInfo, setShowInfo] = useState(false);
 
@@ -1039,11 +1052,12 @@ export default function BracketGame({
                   score={result?.team1Score ?? null}
                   isPicked={pickedTeamId === team1?.id}
                   isWinner={result?.winnerTeamId === team1?.id}
-                  isEliminated={!!result?.winnerTeamId && result.winnerTeamId !== team1?.id}
+                  isEliminated={(!!result?.winnerTeamId && result.winnerTeamId !== team1?.id) || !!team1Eliminated}
                   onClick={() => team1 && onPick(gameId, team1.id)}
                   disabled={disabled}
                   pickedTeamId={pickedTeamId}
                   result={result}
+                  isBusted={(!!team1Eliminated && pickedTeamId === team1?.id) || bustedPickSlot === "team1"}
                 />
               )}
             </div>
@@ -1057,11 +1071,12 @@ export default function BracketGame({
                   score={result?.team2Score ?? null}
                   isPicked={pickedTeamId === team2?.id}
                   isWinner={result?.winnerTeamId === team2?.id}
-                  isEliminated={!!result?.winnerTeamId && result.winnerTeamId !== team2?.id}
+                  isEliminated={(!!result?.winnerTeamId && result.winnerTeamId !== team2?.id) || !!team2Eliminated}
                   onClick={() => team2 && onPick(gameId, team2.id)}
                   disabled={disabled}
                   pickedTeamId={pickedTeamId}
                   result={result}
+                  isBusted={(!!team2Eliminated && pickedTeamId === team2?.id) || bustedPickSlot === "team2"}
                 />
               )}
             </div>

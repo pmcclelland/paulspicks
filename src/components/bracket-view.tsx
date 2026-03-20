@@ -273,6 +273,18 @@ export default function BracketView({
     [gamesById, findNextGame]
   );
 
+  // Build set of eliminated team IDs (teams that lost a final game)
+  const eliminatedTeamIds = useMemo(() => {
+    const eliminated = new Set<number>();
+    for (const game of games) {
+      if (game.status === "final" && game.winnerTeamId) {
+        if (game.team1Id && game.team1Id !== game.winnerTeamId) eliminated.add(game.team1Id);
+        if (game.team2Id && game.team2Id !== game.winnerTeamId) eliminated.add(game.team2Id);
+      }
+    }
+    return eliminated;
+  }, [games]);
+
   // Compute effective games: propagate user picks into team slots for future rounds
   const effectiveGames = useMemo(() => {
     return games.map((game) => {
@@ -281,7 +293,6 @@ export default function BracketView({
 
       // For R2+, compute team slots from feeder game picks
       const [feeder1, feeder2] = getFeederGames(game);
-
       // team1 comes from feeder1's winner (user pick or actual winner)
       let effectiveTeam1Id = game.team1Id;
       if (feeder1) {
@@ -303,15 +314,34 @@ export default function BracketView({
         && effectiveTeam1Id === game.team2Id
         && effectiveTeam2Id === game.team1Id;
 
+      // Detect if the user's pick for this game is an eliminated team not in either slot
+      const gamePick = userPicks.get(game.id);
+      let bustedPickSlot: "team1" | "team2" | null = null;
+      if (gamePick && eliminatedTeamIds.has(gamePick)
+        && gamePick !== effectiveTeam1Id && gamePick !== effectiveTeam2Id) {
+        // Determine which slot the busted pick belongs to by checking feeders
+        if (feeder1) {
+          const feederPick = userPicks.get(feeder1.id);
+          if (feederPick === gamePick) bustedPickSlot = "team1";
+        }
+        if (!bustedPickSlot && feeder2) {
+          const feederPick = userPicks.get(feeder2.id);
+          if (feederPick === gamePick) bustedPickSlot = "team2";
+        }
+        // Fallback: if we can't trace through feeders, mark team1
+        if (!bustedPickSlot) bustedPickSlot = "team1";
+      }
+
       return {
         ...game,
         team1Id: effectiveTeam1Id,
         team2Id: effectiveTeam2Id,
         moneylineTeam1: isSwapped ? game.moneylineTeam2 : game.moneylineTeam1,
         moneylineTeam2: isSwapped ? game.moneylineTeam1 : game.moneylineTeam2,
+        bustedPickSlot,
       };
     });
-  }, [games, userPicks, getFeederGames]);
+  }, [games, userPicks, getFeederGames, eliminatedTeamIds]);
 
   const handlePick = useCallback(
     (gameId: number, teamId: number) => {
@@ -436,33 +466,6 @@ export default function BracketView({
 
   const showCountdown = !locked && firstTipoff && firstTipoff.getTime() > Date.now();
 
-  // Zoom state for desktop bracket
-  const MIN_ZOOM = 0.25;
-  const MAX_ZOOM = 1.5;
-  const ZOOM_STEP = 0.1;
-  const [zoom, setZoom] = useState(1);
-  const outerRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  const calcFitZoom = useCallback(() => {
-    if (!outerRef.current || !innerRef.current) return 1;
-    // Measure natural content size at scale=1
-    const inner = innerRef.current;
-    const prevTransform = inner.style.transform;
-    inner.style.transform = "scale(1)";
-    const contentW = inner.scrollWidth;
-    const contentH = inner.scrollHeight;
-    inner.style.transform = prevTransform;
-    // Available space is the outer container minus padding
-    const outerW = outerRef.current.clientWidth;
-    const outerH = outerRef.current.clientHeight;
-    const fit = Math.min(outerW / contentW, outerH / contentH);
-    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(fit * 100) / 100));
-  }, []);
-
-  // Recalculate fit zoom on window resize (does not auto-apply, just keeps calcFitZoom fresh)
-  // No auto-fit on mount — default is 100%
-
   return (
     <div className="flex flex-col gap-4">
       {/* Header bar */}
@@ -508,15 +511,7 @@ export default function BracketView({
       )}
 
       {/* Desktop Layout */}
-      <div ref={outerRef} className="hidden lg:block overflow-auto relative">
-        <div
-          ref={innerRef}
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "top left",
-            width: "fit-content",
-          }}
-        >
+      <div className="hidden lg:block overflow-auto">
           <div className="inline-flex p-4">
             <div className="flex items-stretch gap-2">
               {/* ── Left half: headers + regions ── */}
@@ -554,6 +549,7 @@ export default function BracketView({
                     onPick={handlePick}
                     disabled={locked}
                     direction="ltr"
+                    eliminatedTeamIds={eliminatedTeamIds}
                   />
                   <BracketRegion
                     regionName="South"
@@ -563,6 +559,7 @@ export default function BracketView({
                     onPick={handlePick}
                     disabled={locked}
                     direction="ltr"
+                    eliminatedTeamIds={eliminatedTeamIds}
                   />
                 </div>
               </div>
@@ -588,6 +585,7 @@ export default function BracketView({
                     userPicks={userPicks}
                     onPick={handlePick}
                     disabled={locked}
+                    eliminatedTeamIds={eliminatedTeamIds}
                   />
                 </div>
               </div>
@@ -629,6 +627,7 @@ export default function BracketView({
                     onPick={handlePick}
                     disabled={locked}
                     direction="rtl"
+                    eliminatedTeamIds={eliminatedTeamIds}
                   />
                   <BracketRegion
                     regionName="Midwest"
@@ -638,49 +637,13 @@ export default function BracketView({
                     onPick={handlePick}
                     disabled={locked}
                     direction="rtl"
+                    eliminatedTeamIds={eliminatedTeamIds}
                   />
                 </div>
               </div>
             </div>
           </div>
         </div>
-        {/* Zoom controls — sticky bottom-right */}
-        <div className="sticky bottom-4 flex justify-end pr-4 pointer-events-none" style={{ marginTop: `-2.5rem` }}>
-          <div className="pointer-events-auto flex items-center gap-1 bg-[#1B365D] rounded-full px-2 py-1.5 shadow-lg">
-            <button
-              onClick={() => setZoom((z) => Math.max(MIN_ZOOM, Math.round((z - ZOOM_STEP) * 100) / 100))}
-              disabled={zoom <= MIN_ZOOM}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-bold"
-              aria-label="Zoom out"
-            >
-              −
-            </button>
-            <button
-              onClick={() => setZoom(1)}
-              className="px-2 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors text-xs font-mono tabular-nums min-w-[3rem]"
-              aria-label="Reset zoom to 100%"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.min(MAX_ZOOM, Math.round((z + ZOOM_STEP) * 100) / 100))}
-              disabled={zoom >= MAX_ZOOM}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-bold"
-              aria-label="Zoom in"
-            >
-              +
-            </button>
-            <div className="w-px h-4 bg-white/20 mx-0.5" />
-            <button
-              onClick={() => setZoom(calcFitZoom())}
-              className="px-2 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors text-xs font-semibold"
-              aria-label="Fit bracket to screen"
-            >
-              Fit
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Mobile/Tablet Layout: Tabs */}
       <div className="lg:hidden px-4">
@@ -707,6 +670,7 @@ export default function BracketView({
                   onPick={handlePick}
                   disabled={locked}
                   direction="ltr"
+                  eliminatedTeamIds={eliminatedTeamIds}
                 />
               </div>
             </TabsContent>
@@ -720,6 +684,7 @@ export default function BracketView({
                 userPicks={userPicks}
                 onPick={handlePick}
                 disabled={locked}
+                eliminatedTeamIds={eliminatedTeamIds}
               />
             </div>
           </TabsContent>
