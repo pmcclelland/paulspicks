@@ -96,13 +96,8 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
       return dbId;
     };
 
-    // For R1 games, accept ESPN team assignments.
-    // For R2+ games, only accept ESPN teams if the game is in progress or final
-    // (our advancement logic is the source of truth for future round matchups).
-    const acceptEspnTeams = dbGame.round === 1 || event.status === "in_progress" || event.status === "final";
-
-    const team1DbId = acceptEspnTeams ? resolveTeamId(event.team1, dbGame.team1Id) : dbGame.team1Id;
-    const team2DbId = acceptEspnTeams ? resolveTeamId(event.team2, dbGame.team2Id) : dbGame.team2Id;
+    const team1DbId = resolveTeamId(event.team1, dbGame.team1Id);
+    const team2DbId = resolveTeamId(event.team2, dbGame.team2Id);
     const winnerDbId = event.winnerEspnTeamId
       ? espnToDbId.get(event.winnerEspnTeamId) ?? null
       : null;
@@ -151,29 +146,10 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         scoredPicks++;
       }
 
-      // Advance winner to next round
-      if (dbGame.round < 6) {
-        const nextGameInfo = getNextGame(dbGame.round, dbGame.gameIndex);
-        if (nextGameInfo) {
-          const slot = getSlotInNextGame(dbGame.gameIndex);
-          let nextRegion = dbGame.region;
-          if (nextGameInfo.round >= 5) {
-            nextRegion = "Final Four";
-          }
-          const nextKey = `${nextGameInfo.round}-${nextRegion}-${nextGameInfo.gameIndex}`;
-          const nextGame = gameByRoundRegionIndex.get(nextKey);
-
-          if (nextGame) {
-            const updateField =
-              slot === "team1"
-                ? { team1Id: winnerDbId }
-                : { team2Id: winnerDbId };
-            await db.update(games)
-              .set(updateField)
-              .where(eq(games.id, nextGame.id));
-          }
-        }
-      }
+      // Winner advancement to next round is handled by ESPN's team assignments
+      // during the next refresh cycle. ESPN's R2+ gameIndex mapping doesn't follow
+      // our floor(idx/2) convention, so manual advancement would place teams in
+      // the wrong games.
     }
   }
 
