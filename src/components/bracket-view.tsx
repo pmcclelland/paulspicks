@@ -436,6 +436,33 @@ export default function BracketView({
 
   const showCountdown = !locked && firstTipoff && firstTipoff.getTime() > Date.now();
 
+  // Zoom state for desktop bracket
+  const MIN_ZOOM = 0.25;
+  const MAX_ZOOM = 1.5;
+  const ZOOM_STEP = 0.1;
+  const [zoom, setZoom] = useState(1);
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  const calcFitZoom = useCallback(() => {
+    if (!outerRef.current || !innerRef.current) return 1;
+    // Measure natural content size at scale=1
+    const inner = innerRef.current;
+    const prevTransform = inner.style.transform;
+    inner.style.transform = "scale(1)";
+    const contentW = inner.scrollWidth;
+    const contentH = inner.scrollHeight;
+    inner.style.transform = prevTransform;
+    // Available space is the outer container minus padding
+    const outerW = outerRef.current.clientWidth;
+    const outerH = outerRef.current.clientHeight;
+    const fit = Math.min(outerW / contentW, outerH / contentH);
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(fit * 100) / 100));
+  }, []);
+
+  // Recalculate fit zoom on window resize (does not auto-apply, just keeps calcFitZoom fresh)
+  // No auto-fit on mount — default is 100%
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header bar */}
@@ -481,131 +508,176 @@ export default function BracketView({
       )}
 
       {/* Desktop Layout */}
-      <div className="hidden lg:block overflow-x-auto">
-        <div className="inline-flex p-4">
-          <div className="flex items-stretch gap-2">
-            {/* ── Left half: headers + regions ── */}
-            <div className="flex flex-col flex-shrink-0">
-              {/* Round headers (LTR) */}
-              <div className="flex mb-4">
-                {[
-                  { name: "ROUND 1", dates: "Mar 19 – 20" },
-                  { name: "ROUND 2", dates: "Mar 21 – 22" },
-                  { name: "SWEET 16", dates: "Mar 26 – 27" },
-                  { name: "ELITE 8", dates: "Mar 28 – 29" },
-                ].map((h, i) => (
-                  <div key={h.name} className="flex items-center">
-                    {i > 0 && <div className="w-8 flex-shrink-0" />}
-                    <div className="w-56 flex-shrink-0">
-                      <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
-                        <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
-                          {h.name}
-                        </div>
-                        <div className="text-[10px] text-white/50 mt-1 leading-none">
-                          {h.dates}
+      <div ref={outerRef} className="hidden lg:block overflow-auto relative">
+        <div
+          ref={innerRef}
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top left",
+            width: "fit-content",
+          }}
+        >
+          <div className="inline-flex p-4">
+            <div className="flex items-stretch gap-2">
+              {/* ── Left half: headers + regions ── */}
+              <div className="flex flex-col flex-shrink-0">
+                {/* Round headers (LTR) */}
+                <div className="flex mb-4">
+                  {[
+                    { name: "ROUND 1", dates: "Mar 19 – 20" },
+                    { name: "ROUND 2", dates: "Mar 21 – 22" },
+                    { name: "SWEET 16", dates: "Mar 26 – 27" },
+                    { name: "ELITE 8", dates: "Mar 28 – 29" },
+                  ].map((h, i) => (
+                    <div key={h.name} className="flex items-center">
+                      {i > 0 && <div className="w-8 flex-shrink-0" />}
+                      <div className="w-56 flex-shrink-0">
+                        <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
+                          <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
+                            {h.name}
+                          </div>
+                          <div className="text-[10px] text-white/50 mt-1 leading-none">
+                            {h.dates}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              {/* Left regions */}
-              <div className="flex flex-col gap-12">
-                <BracketRegion
-                  regionName="East"
-                  games={regionGames.get("East") || []}
-                  teams={teamsMap}
-                  userPicks={userPicks}
-                  onPick={handlePick}
-                  disabled={locked}
-                  direction="ltr"
-                />
-                <BracketRegion
-                  regionName="South"
-                  games={regionGames.get("South") || []}
-                  teams={teamsMap}
-                  userPicks={userPicks}
-                  onPick={handlePick}
-                  disabled={locked}
-                  direction="ltr"
-                />
-              </div>
-            </div>
-
-            {/* ── Center: Final Four ── */}
-            <div className="flex flex-col flex-shrink-0">
-              {/* Header pill aligned with the round headers */}
-              <div className="mb-4 px-2">
-                <div className="bg-[#F4793B] rounded-md px-5 py-2 text-center">
-                  <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
-                    FINAL FOUR
-                  </div>
-                  <div className="text-[10px] text-white/80 mt-1 leading-none">
-                    Apr 4 &middot; Apr 6
-                  </div>
+                  ))}
+                </div>
+                {/* Left regions */}
+                <div className="flex flex-col gap-12">
+                  <BracketRegion
+                    regionName="East"
+                    games={regionGames.get("East") || []}
+                    teams={teamsMap}
+                    userPicks={userPicks}
+                    onPick={handlePick}
+                    disabled={locked}
+                    direction="ltr"
+                  />
+                  <BracketRegion
+                    regionName="South"
+                    games={regionGames.get("South") || []}
+                    teams={teamsMap}
+                    userPicks={userPicks}
+                    onPick={handlePick}
+                    disabled={locked}
+                    direction="ltr"
+                  />
                 </div>
               </div>
-              {/* Final Four card — vertically centered */}
-              <div className="flex items-center justify-center flex-1 px-2">
-                <FinalFour
-                  games={finalFourGames}
-                  teams={teamsMap}
-                  userPicks={userPicks}
-                  onPick={handlePick}
-                  disabled={locked}
-                />
-              </div>
-            </div>
 
-            {/* ── Right half: headers + regions ── */}
-            <div className="flex flex-col flex-shrink-0">
-              {/* Round headers (RTL — R1 rightmost, E8 leftmost in flex-row-reverse)
-                   Each wrapper: pill then spacer. Spacer goes to left of pill visually
-                   (between this round and the next toward center). E8 has no spacer. */}
-              <div className="flex flex-row-reverse mb-4">
-                {[
-                  { name: "ROUND 1", dates: "Mar 19 – 20" },
-                  { name: "ROUND 2", dates: "Mar 21 – 22" },
-                  { name: "SWEET 16", dates: "Mar 26 – 27" },
-                  { name: "ELITE 8", dates: "Mar 28 – 29" },
-                ].map((h, i) => (
-                  <div key={h.name} className="flex flex-row-reverse items-center">
-                    <div className="w-56 flex-shrink-0">
-                      <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
-                        <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
-                          {h.name}
-                        </div>
-                        <div className="text-[10px] text-white/50 mt-1 leading-none">
-                          {h.dates}
+              {/* ── Center: Final Four ── */}
+              <div className="flex flex-col flex-shrink-0">
+                {/* Header pill aligned with the round headers */}
+                <div className="mb-4 px-2">
+                  <div className="bg-[#F4793B] rounded-md px-5 py-2 text-center">
+                    <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
+                      FINAL FOUR
+                    </div>
+                    <div className="text-[10px] text-white/80 mt-1 leading-none">
+                      Apr 4 &middot; Apr 6
+                    </div>
+                  </div>
+                </div>
+                {/* Final Four card — vertically centered */}
+                <div className="flex items-center justify-center flex-1 px-2">
+                  <FinalFour
+                    games={finalFourGames}
+                    teams={teamsMap}
+                    userPicks={userPicks}
+                    onPick={handlePick}
+                    disabled={locked}
+                  />
+                </div>
+              </div>
+
+              {/* ── Right half: headers + regions ── */}
+              <div className="flex flex-col flex-shrink-0">
+                {/* Round headers (RTL — R1 rightmost, E8 leftmost in flex-row-reverse)
+                     Each wrapper: pill then spacer. Spacer goes to left of pill visually
+                     (between this round and the next toward center). E8 has no spacer. */}
+                <div className="flex flex-row-reverse mb-4">
+                  {[
+                    { name: "ROUND 1", dates: "Mar 19 – 20" },
+                    { name: "ROUND 2", dates: "Mar 21 – 22" },
+                    { name: "SWEET 16", dates: "Mar 26 – 27" },
+                    { name: "ELITE 8", dates: "Mar 28 – 29" },
+                  ].map((h, i) => (
+                    <div key={h.name} className="flex flex-row-reverse items-center">
+                      <div className="w-56 flex-shrink-0">
+                        <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
+                          <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
+                            {h.name}
+                          </div>
+                          <div className="text-[10px] text-white/50 mt-1 leading-none">
+                            {h.dates}
+                          </div>
                         </div>
                       </div>
+                      {i < 3 && <div className="w-8 flex-shrink-0" />}
                     </div>
-                    {i < 3 && <div className="w-8 flex-shrink-0" />}
-                  </div>
-                ))}
-              </div>
-              {/* Right regions */}
-              <div className="flex flex-col gap-12">
-                <BracketRegion
-                  regionName="West"
-                  games={regionGames.get("West") || []}
-                  teams={teamsMap}
-                  userPicks={userPicks}
-                  onPick={handlePick}
-                  disabled={locked}
-                  direction="rtl"
-                />
-                <BracketRegion
-                  regionName="Midwest"
-                  games={regionGames.get("Midwest") || []}
-                  teams={teamsMap}
-                  userPicks={userPicks}
-                  onPick={handlePick}
-                  disabled={locked}
-                  direction="rtl"
-                />
+                  ))}
+                </div>
+                {/* Right regions */}
+                <div className="flex flex-col gap-12">
+                  <BracketRegion
+                    regionName="West"
+                    games={regionGames.get("West") || []}
+                    teams={teamsMap}
+                    userPicks={userPicks}
+                    onPick={handlePick}
+                    disabled={locked}
+                    direction="rtl"
+                  />
+                  <BracketRegion
+                    regionName="Midwest"
+                    games={regionGames.get("Midwest") || []}
+                    teams={teamsMap}
+                    userPicks={userPicks}
+                    onPick={handlePick}
+                    disabled={locked}
+                    direction="rtl"
+                  />
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+        {/* Zoom controls — sticky bottom-right */}
+        <div className="sticky bottom-4 flex justify-end pr-4 pointer-events-none" style={{ marginTop: `-2.5rem` }}>
+          <div className="pointer-events-auto flex items-center gap-1 bg-[#1B365D] rounded-full px-2 py-1.5 shadow-lg">
+            <button
+              onClick={() => setZoom((z) => Math.max(MIN_ZOOM, Math.round((z - ZOOM_STEP) * 100) / 100))}
+              disabled={zoom <= MIN_ZOOM}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-bold"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-2 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors text-xs font-mono tabular-nums min-w-[3rem]"
+              aria-label="Reset zoom to 100%"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={() => setZoom((z) => Math.min(MAX_ZOOM, Math.round((z + ZOOM_STEP) * 100) / 100))}
+              disabled={zoom >= MAX_ZOOM}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-bold"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <div className="w-px h-4 bg-white/20 mx-0.5" />
+            <button
+              onClick={() => setZoom(calcFitZoom())}
+              className="px-2 h-7 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors text-xs font-semibold"
+              aria-label="Fit bracket to screen"
+            >
+              Fit
+            </button>
           </div>
         </div>
       </div>
