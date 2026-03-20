@@ -341,6 +341,7 @@ export default function BracketView({
         moneylineTeam1: isSwapped ? game.moneylineTeam2 : game.moneylineTeam1,
         moneylineTeam2: isSwapped ? game.moneylineTeam1 : game.moneylineTeam2,
         bustedPickSlot,
+        isSwapped: !!isSwapped,
       };
     });
   }, [games, userPicks, getFeederGames, eliminatedTeamIds]);

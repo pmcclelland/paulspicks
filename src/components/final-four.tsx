@@ -11,6 +11,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+/** Swap simProb if effectiveGames swapped team1/team2 relative to DB */
+function getAdjustedSimProb(
+  game: GameData,
+  gameOdds?: Record<number, { team1Prob: number; team2Prob: number }>
+): { team1Prob: number; team2Prob: number } | undefined {
+  const odds = gameOdds?.[game.id];
+  if (!odds) return undefined;
+  if (game.isSwapped) return { team1Prob: odds.team2Prob, team2Prob: odds.team1Prob };
+  return odds;
+}
+
 type FinalFourProps = {
   games: GameData[];
   teams: Map<number, TeamData>;
@@ -192,7 +203,7 @@ export default function FinalFour({
                 label="Semifinal 1"
                 swapTeams
                 eliminatedTeamIds={eliminatedTeamIds}
-                simProb={gameOdds?.[semis[0].id]}
+                simProb={getAdjustedSimProb(semis[0], gameOdds)}
               />
             )}
 
@@ -207,7 +218,7 @@ export default function FinalFour({
                   disabled={disabled}
                   label="Championship"
                   eliminatedTeamIds={eliminatedTeamIds}
-                  simProb={gameOdds?.[championship.id]}
+                  simProb={getAdjustedSimProb(championship, gameOdds)}
                 />
                 {championTeam && (() => {
                   const isChampEliminated = eliminatedTeamIds?.has(championTeam.id);
@@ -245,7 +256,7 @@ export default function FinalFour({
                 label="Semifinal 2"
                 swapTeams
                 eliminatedTeamIds={eliminatedTeamIds}
-                simProb={gameOdds?.[semis[1].id]}
+                simProb={getAdjustedSimProb(semis[1], gameOdds)}
               />
             )}
           </div>

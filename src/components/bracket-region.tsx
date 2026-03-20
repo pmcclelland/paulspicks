@@ -33,6 +33,8 @@ export type GameData = {
   oddsProvider?: string | null;
   /** When user's pick for this game is an eliminated team not in either slot */
   bustedPickSlot?: "team1" | "team2" | null;
+  /** When effectiveGames swapped team1/team2 relative to DB */
+  isSwapped?: boolean;
 };
 
 type BracketRegionProps = {
@@ -107,7 +109,9 @@ function renderGameCard(
       team1Eliminated={!!team1 && !!eliminatedTeamIds?.has(team1.id)}
       team2Eliminated={!!team2 && !!eliminatedTeamIds?.has(team2.id)}
       bustedPickSlot={game.bustedPickSlot}
-      simProb={gameOdds?.[game.id]}
+      simProb={gameOdds?.[game.id] && game.isSwapped
+        ? { team1Prob: gameOdds[game.id].team2Prob, team2Prob: gameOdds[game.id].team1Prob }
+        : gameOdds?.[game.id]}
     />
   );
 }
