@@ -115,6 +115,8 @@ export default function StatsPage() {
 
   useEffect(() => {
     fetchStats();
+    const interval = setInterval(fetchStats, 60000);
+    return () => clearInterval(interval);
   }, [fetchStats]);
 
   if (loading) {

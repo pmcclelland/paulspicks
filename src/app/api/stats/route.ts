@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { games, teams, kenpomRankings, picks, users } from "@/lib/db/schema";
 import { schoolName } from "@/lib/school-names";
 import { ROUND_NAMES } from "@/lib/bracket-utils";
+import { refreshScoresIfStale } from "@/lib/refresh-scores";
 import {
   HISTORICAL_UPSETS_PER_ROUND,
   HISTORICAL_SEED_WIN_RATES,
@@ -14,6 +15,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    // Auto-refresh scores from ESPN if stale
+    try {
+      await refreshScoresIfStale();
+    } catch (e) {
+      console.warn("Stats auto-refresh failed:", e);
+    }
+
     const [allGames, allTeams, allKenpom, allPicks, allUsers] = await Promise.all([
       db.select().from(games),
       db.select().from(teams),
