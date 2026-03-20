@@ -2,10 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { teams, kenpomRankings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { schoolName } from "@/lib/school-names";
 
 export const dynamic = "force-dynamic";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
+const ROTOWIRE_URL = "https://www.rotowire.com/cbasketball/tables/injury-report.php?team=ALL&pos=ALL";
+
+// Rotowire uses different names for some schools
+const ROTOWIRE_NAME_MAP: Record<string, string> = {
+  "Connecticut": "UConn",
+  "Central Florida": "UCF",
+  "Hawaii": "Hawai'i",
+  "Pennsylvania": "Penn",
+  "California Baptist": "Cal Baptist",
+  "LIU": "Long Island",
+};
 
 type GameResult = {
   date: string;
@@ -32,6 +44,13 @@ type NotableGame = {
   date: string;
 };
 
+type InjuryInfo = {
+  player: string;
+  position: string;
+  injury: string;
+  status: string;
+};
+
 type TeamDetails = {
   record: string;
   homeRecord: string | null;
@@ -49,6 +68,7 @@ type TeamDetails = {
   quadRecord: { q1: string; q2: string; q3: string; q4: string } | null;
   notableWins: NotableGame[];
   notableLosses: NotableGame[];
+  injuries: InjuryInfo[];
 };
 
 /**
@@ -109,13 +129,15 @@ export async function GET(request: NextRequest) {
     quadRecord: null,
     notableWins: [],
     notableLosses: [],
+    injuries: [],
   };
 
-  // Fetch team info + schedule + roster in parallel
-  const [teamRes, scheduleRes, rosterRes] = await Promise.all([
+  // Fetch team info + schedule + roster + injuries in parallel
+  const [teamRes, scheduleRes, rosterRes, injuryRes] = await Promise.all([
     fetch(`${ESPN_BASE}/teams/${espnId}`).then((r) => r.ok ? r.json() : null).catch(() => null),
     fetch(`${ESPN_BASE}/teams/${espnId}/schedule?season=2026&seasontype=2`).then((r) => r.ok ? r.json() : null).catch(() => null),
     fetch(`${ESPN_BASE}/teams/${espnId}/roster`).then((r) => r.ok ? r.json() : null).catch(() => null),
+    fetch(ROTOWIRE_URL).then((r) => r.ok ? r.json() : null).catch(() => null),
   ]);
 
   // Parse team record
@@ -271,6 +293,22 @@ export async function GET(request: NextRequest) {
     details.kenpomAdjORank = kp.adjORank;
     details.kenpomAdjD = kp.adjD;
     details.kenpomAdjDRank = kp.adjDRank;
+  }
+
+  // Filter Rotowire injuries for this team
+  if (Array.isArray(injuryRes)) {
+    const teamShortName = schoolName(team.name);
+    details.injuries = injuryRes
+      .filter((entry: any) => {
+        const rotowireName = ROTOWIRE_NAME_MAP[entry.team] ?? entry.team;
+        return rotowireName === teamShortName;
+      })
+      .map((entry: any) => ({
+        player: entry.player,
+        position: entry.position,
+        injury: entry.injury,
+        status: entry.status,
+      }));
   }
 
   return NextResponse.json(details);

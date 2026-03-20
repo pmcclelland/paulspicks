@@ -383,6 +383,12 @@ type TeamDetailsData = {
     win: boolean;
     date: string;
   }>;
+  injuries: Array<{
+    player: string;
+    position: string;
+    injury: string;
+    status: string;
+  }>;
 };
 
 function TeamDetailsSection({ team }: { team: TeamData }) {
@@ -590,6 +596,32 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
                         <span className="text-[#5A7A99] font-mono w-4 text-right">#{p.jersey}</span>
                         <span className="text-[#1B365D] font-medium truncate">{p.name}</span>
                         <span className="text-[#5A7A99] text-[9px] ml-auto flex-shrink-0">{p.position}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Injuries */}
+              {data.injuries.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">
+                    Injuries
+                  </div>
+                  <div className="space-y-0.5">
+                    {data.injuries.map((inj, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-[#1B365D] font-medium truncate flex-1">
+                          {inj.player}
+                        </span>
+                        <span className="text-[#5A7A99] text-[9px] flex-shrink-0">{inj.position} &middot; {inj.injury}</span>
+                        <span className={`text-[9px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0 ${
+                          inj.status === "Game Time Decision"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-600"
+                        }`}>
+                          {inj.status === "Game Time Decision" ? "GTD" : inj.status}
+                        </span>
                       </div>
                     ))}
                   </div>
