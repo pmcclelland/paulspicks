@@ -19,6 +19,7 @@ export const teams = sqliteTable("teams", {
   seed: integer("seed").notNull(),
   region: text("region").notNull(),
   logoUrl: text("logo_url"),
+  conference: text("conference"),
 });
 
 export const games = sqliteTable("games", {

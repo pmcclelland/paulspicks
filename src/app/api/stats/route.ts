@@ -150,9 +150,15 @@ export async function GET() {
       teams: { name: string; abbreviation: string; seed: number; logoUrl: string | null; eliminated: boolean }[];
     }> = {};
 
-    for (const team of tournamentTeams) {
+    // Helper: get conference for a team (from DB, fall back to KenPom)
+    function getConference(team: (typeof allTeams)[0]): string {
+      if (team.conference) return team.conference;
       const kp = getKenpom(team);
-      const conf = kp?.conference || "Unknown";
+      return kp?.conference || "Unknown";
+    }
+
+    for (const team of tournamentTeams) {
+      const conf = getConference(team);
       if (!conferenceData[conf]) {
         conferenceData[conf] = { conference: conf, wins: 0, losses: 0, teamsRemaining: 0, teams: [] };
       }
@@ -174,11 +180,11 @@ export async function GET() {
       const loserId = game.winnerTeamId === game.team1Id ? game.team2Id : game.team1Id;
       const loser = teamMap.get(loserId);
       if (winner) {
-        const wConf = getKenpom(winner)?.conference || "Unknown";
+        const wConf = getConference(winner);
         if (conferenceData[wConf]) conferenceData[wConf].wins++;
       }
       if (loser) {
-        const lConf = getKenpom(loser)?.conference || "Unknown";
+        const lConf = getConference(loser);
         if (conferenceData[lConf]) conferenceData[lConf].losses++;
       }
     }

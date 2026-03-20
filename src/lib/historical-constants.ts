@@ -40,16 +40,16 @@ export const HISTORICAL_SEED_WIN_RATES: Record<number, Record<number, number>> =
 
 /** Average tournament wins for major conferences (historical) */
 export const HISTORICAL_CONFERENCE_TOURNAMENT_WINS: Record<string, number> = {
-  "B12": 8.5,
+  "Big 12": 8.5,
   "SEC": 8.0,
-  "B10": 7.5,
+  "Big Ten": 7.5,
   "ACC": 7.0,
-  "BE": 6.5,
-  "P12": 5.5,
-  "MWC": 2.5,
-  "Amer": 2.0,
+  "Big East": 6.5,
+  "Pac-12": 5.5,
+  "Mountain West": 2.5,
+  "American Athletic": 2.0,
   "WCC": 2.0,
-  "A10": 1.5,
+  "A-10": 1.5,
 };
 
 /** Average margin of victory by round */
