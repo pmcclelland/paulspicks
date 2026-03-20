@@ -133,14 +133,16 @@ export async function GET() {
       winnerTeamId: g.winnerTeamId,
     }));
 
-  const simTeams: SimTeam[] = allTeams.map((t) => ({
-    id: t.id,
-    name: t.name,
-    abbreviation: t.abbreviation,
-    seed: t.seed,
-    region: t.region,
-    logoUrl: t.logoUrl,
-  }));
+  const simTeams: SimTeam[] = allTeams
+    .filter((t) => t.seed < 17 && t.abbreviation !== "TBD") // Exclude First Four placeholders
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      abbreviation: t.abbreviation,
+      seed: t.seed,
+      region: t.region,
+      logoUrl: t.logoUrl,
+    }));
 
   const kenpomMap = buildKenPomMap(allKenpom);
   const teamsById = new Map(simTeams.map((t) => [t.id, t]));
