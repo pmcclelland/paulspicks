@@ -72,14 +72,71 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
 
   const allGames = await db.select().from(games);
   const gameByRoundRegionIndex = new Map<string, (typeof allGames)[0]>();
+  const gameByEspnEventId = new Map<string, (typeof allGames)[0]>();
   for (const g of allGames) {
     gameByRoundRegionIndex.set(`${g.round}-${g.region}-${g.gameIndex}`, g);
+    if (g.espnEventId) gameByEspnEventId.set(g.espnEventId, g);
+  }
+
+  // Build team-to-R1-game lookup for R2+ bracket position matching
+  const teamToR1Game = new Map<number, (typeof allGames)[0]>();
+  for (const g of allGames) {
+    if (g.round === 1) {
+      if (g.team1Id) teamToR1Game.set(g.team1Id, g);
+      if (g.team2Id) teamToR1Game.set(g.team2Id, g);
+      // Also map winners from completed games
+      if (g.winnerTeamId) teamToR1Game.set(g.winnerTeamId, g);
+    }
+  }
+
+  /**
+   * Given a team's R1 gameIndex, walk the bracket structure forward to find
+   * which game slot they should be in at a given round.
+   * R1 idx → R2 floor(idx/2) → R3 floor(idx/4) → R4 floor(idx/8) = 0
+   */
+  function r1IndexToGameIndex(r1GameIndex: number, targetRound: number): number {
+    let idx = r1GameIndex;
+    for (let r = 1; r < targetRound; r++) {
+      idx = Math.floor(idx / 2);
+    }
+    return idx;
   }
 
   for (const event of parsed.games) {
     if (event.round === 0) continue; // Skip First Four
-    const key = `${event.round}-${event.region}-${event.gameIndex}`;
-    const dbGame = gameByRoundRegionIndex.get(key);
+
+    let dbGame: (typeof allGames)[0] | undefined;
+
+    if (event.round === 1) {
+      // R1: match by round-region-gameIndex (standard bracket order)
+      const key = `${event.round}-${event.region}-${event.gameIndex}`;
+      dbGame = gameByRoundRegionIndex.get(key);
+    } else {
+      // R2+: first try matching by espnEventId (already assigned from prior refresh)
+      if (event.espnEventId) {
+        dbGame = gameByEspnEventId.get(event.espnEventId);
+      }
+
+      // If no espnEventId match, find correct DB game by tracing team's bracket path
+      // Try both team1 and team2 since either could map back to an R1 game
+      if (!dbGame && event.round <= 4) {
+        for (const eventTeam of [event.team1, event.team2]) {
+          if (!eventTeam || dbGame) continue;
+          const teamDbId = espnToDbId.get(eventTeam.espnTeamId);
+          if (teamDbId) {
+            const r1Game = teamToR1Game.get(teamDbId);
+            if (r1Game) {
+              const targetIdx = r1IndexToGameIndex(r1Game.gameIndex, event.round);
+              const key = `${event.round}-${event.region}-${targetIdx}`;
+              dbGame = gameByRoundRegionIndex.get(key);
+            }
+          }
+        }
+      }
+
+      // No fallback for R2+ — ESPN's gameIndex doesn't match bracket structure
+    }
+
     if (!dbGame) continue;
 
     const wasCompleted = dbGame.status === "final";
