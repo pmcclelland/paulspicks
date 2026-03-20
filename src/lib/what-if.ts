@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { eq, or, isNull } from "drizzle-orm";
 import { POINTS_PER_ROUND } from "@/lib/scoring";
-import { getNextGame } from "@/lib/bracket-utils";
+import { getNextGame, getFeederGames, getSlotInNextGame, REGIONS } from "@/lib/bracket-utils";
 
 export type WhatIfGame = {
   gameId: number;
@@ -50,13 +50,12 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
     .where(or(eq(schema.users.isSpectator, 0), isNull(schema.users.isSpectator)));
 
   const teamMap = new Map(allTeams.map((t) => [t.id, t]));
-  const gameMap = new Map(allGames.map((g) => [g.id, g]));
   const userMap = new Map(allUsers.map((u) => [u.id, u.name]));
 
-  // Build game lookup by round+region+gameIndex
+  // Build game lookup by region+round+gameIndex
   const gameByKey = new Map<string, typeof allGames[0]>();
   for (const g of allGames) {
-    gameByKey.set(`${g.round}-${g.region}-${g.gameIndex}`, g);
+    gameByKey.set(`${g.region}|${g.round}|${g.gameIndex}`, g);
   }
 
   // Build eliminated teams
@@ -82,25 +81,21 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
   }
 
   const currentPoints = userPoints.get(userId) ?? 0;
+  const currentRank = [...userPoints.values()].filter((pts) => pts > currentPoints).length + 1;
 
-  // Compute current ranks
-  const sortedPoints = [...userPoints.entries()].sort((a, b) => b[1] - a[1]);
-  let currentRank = 1;
-  for (let i = 0; i < sortedPoints.length; i++) {
-    if (i > 0 && sortedPoints[i][1] < sortedPoints[i - 1][1]) currentRank = i + 1;
-    if (sortedPoints[i][0] === userId) break;
-    if (i > 0 && sortedPoints[i][1] < sortedPoints[i - 1][1]) currentRank = i + 1;
-  }
-  // Fix: properly compute rank
-  currentRank = 1;
-  for (const [uid, pts] of sortedPoints) {
-    if (uid === userId) break;
-    if (pts > currentPoints) currentRank++;
-  }
-  currentRank = sortedPoints.filter(([, pts]) => pts > currentPoints).length + 1;
-
-  // Try to load simulation cache for win probabilities
-  let gameOdds: Record<number, { team1Prob: number; team2Prob: number }> = {};
+  // Load simulation cache for win probabilities
+  // We use liveTeamOdds (per-team round advancement probabilities) rather than
+  // gameOdds because gameOdds for TBD games don't respect bracket slot mapping.
+  type TeamOddsEntry = {
+    teamId: number;
+    r32: number;
+    s16: number;
+    e8: number;
+    f4: number;
+    finals: number;
+    champion: number;
+  };
+  let teamOddsById = new Map<number, TeamOddsEntry>();
   try {
     const cached = await db
       .select()
@@ -108,20 +103,105 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
       .where(eq(schema.appState.key, "simulation_cache_v4"));
     if (cached.length > 0) {
       const parsed = JSON.parse(cached[0].value);
-      if (parsed.gameOdds) {
-        gameOdds = parsed.gameOdds;
+      const liveTeamOdds: TeamOddsEntry[] = parsed.data?.liveTeamOdds || [];
+      for (const t of liveTeamOdds) {
+        teamOddsById.set(t.teamId, t);
       }
     }
   } catch {
     // No cache available
   }
 
-  // Compute what-if for each upcoming game where user has a pick
-  const upcomingGames = allGames.filter(
-    (g) => g.status !== "final" && !eliminatedTeamIds.has(userPickByGame.get(g.id)?.pickedTeamId ?? -1)
-  );
+  // Get win probability for a team in a specific round using team advancement odds.
+  // P(team wins game in round R) = P(team reaches round R+1) / P(team reaches round R)
+  // For completed rounds, the team already reached the current round so denominator = 1.
+  const ROUND_TO_ODDS_KEY: Record<number, [keyof TeamOddsEntry, keyof TeamOddsEntry]> = {
+    1: ["r32", "r32"],      // R1: reaching R32 = winning R1 (all R1 teams start at 100%)
+    2: ["s16", "r32"],      // R2: P(S16) / P(R32)
+    3: ["e8", "s16"],       // S16: P(E8) / P(S16)
+    4: ["f4", "e8"],        // E8: P(F4) / P(E8)
+    5: ["finals", "f4"],    // F4: P(Finals) / P(F4)
+    6: ["champion", "finals"], // Champ: P(Champ) / P(Finals)
+  };
 
+  function getTeamWinProb(teamId: number, round: number): number {
+    const odds = teamOddsById.get(teamId);
+    if (!odds) return 0.5;
+
+    const keys = ROUND_TO_ODDS_KEY[round];
+    if (!keys) return 0.5;
+
+    const [advanceKey, reachKey] = keys;
+    const advanceProb = odds[advanceKey] as number;
+    const reachProb = round === 1 ? 1 : odds[reachKey] as number;
+
+    // If team has 0% chance of reaching this round, can't compute conditional prob
+    if (reachProb <= 0) return 0;
+
+    return Math.min(advanceProb / reachProb, 1);
+  }
+
+  // Resolve the effective team in each slot for a game, walking feeder games recursively.
+  // Uses actual winners first, then user's picks as fallback.
+  function resolveSlotTeam(
+    region: string,
+    round: number,
+    gameIndex: number,
+    slot: "team1" | "team2"
+  ): number | null {
+    const game = gameByKey.get(`${region}|${round}|${gameIndex}`);
+    if (!game) return null;
+
+    // If the DB already has a team in this slot, use it
+    const dbTeamId = slot === "team1" ? game.team1Id : game.team2Id;
+    if (dbTeamId) return dbTeamId;
+
+    // The other slot's team (to avoid resolving the same team twice)
+    const otherSlotTeamId = slot === "team1" ? game.team2Id : game.team1Id;
+
+    // Try both feeders and pick the one that doesn't duplicate the other slot
+    const feeders = getFeederGames(round, gameIndex);
+    for (const feederIdx of (slot === "team1" ? [0, 1] : [1, 0])) {
+      const feeder = feeders[feederIdx];
+      if (!feeder) continue;
+
+      const feederRegion = round >= 5 ? resolveFeederRegion(round, gameIndex, feederIdx) : region;
+      // For F4 feeders, getFeederGames returns gameIndex 0,1 but E8 only has gameIndex 0 per region.
+      // The region lookup handles the differentiation, so use gameIndex 0 for cross-region feeders.
+      const feederGameIndex = (round === 5 && feeder.round === 4) ? 0 : feeder.gameIndex;
+      const feederGame = gameByKey.get(`${feederRegion}|${feeder.round}|${feederGameIndex}`);
+      if (!feederGame) continue;
+
+      const resolved = feederGame.winnerTeamId
+        || userPickByGame.get(feederGame.id)?.pickedTeamId
+        || null;
+
+      // Skip if this resolves to the same team already in the other slot
+      if (resolved && resolved !== otherSlotTeamId) return resolved;
+    }
+
+    return null;
+  }
+
+  // For Final Four / Championship, resolve which region a feeder comes from
+  function resolveFeederRegion(round: number, gameIndex: number, feederIdx: number): string {
+    if (round === 5) {
+      // Semi 0: REGIONS[0] vs REGIONS[1], Semi 1: REGIONS[2] vs REGIONS[3]
+      return REGIONS[gameIndex * 2 + feederIdx];
+    }
+    if (round === 6) {
+      // Championship feeders are F4 games 0 and 1
+      return "Final Four";
+    }
+    return "Final Four";
+  }
+
+  // Build what-if analysis for each upcoming game where user has a live pick
   const whatIfGames: WhatIfGame[] = [];
+
+  const upcomingGames = allGames.filter(
+    (g) => g.status !== "final"
+  );
 
   for (const game of upcomingGames) {
     const userPick = userPickByGame.get(game.id);
@@ -134,20 +214,16 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
 
     // Compute cascade loss: walk forward through next games
     let cascadeLoss = 0;
-    let currentGame = game;
-    let currentRound = game.round;
-    let currentGameIndex = game.gameIndex;
+    let walkRegion = game.region;
+    let walkRound = game.round;
+    let walkGameIndex = game.gameIndex;
 
     while (true) {
-      const next = getNextGame(currentRound, currentGameIndex);
+      const next = getNextGame(walkRound, walkGameIndex);
       if (!next) break;
 
-      // Find the actual next game in db
-      const nextGame = allGames.find(
-        (g) => g.round === next.round &&
-          (next.round >= 5 ? g.region === "Final Four" : g.region === currentGame.region) &&
-          g.gameIndex === next.gameIndex
-      );
+      const nextRegion = next.round >= 5 ? "Final Four" : walkRegion;
+      const nextGame = gameByKey.get(`${nextRegion}|${next.round}|${next.gameIndex}`);
       if (!nextGame || nextGame.status === "final") break;
 
       const nextPick = userPickByGame.get(nextGame.id);
@@ -155,23 +231,22 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
         cascadeLoss += POINTS_PER_ROUND[nextGame.round] ?? 0;
       }
 
-      currentRound = next.round;
-      currentGameIndex = next.gameIndex;
-      // Update currentGame for region tracking
-      if (nextGame) currentGame = nextGame;
+      walkRound = next.round;
+      walkGameIndex = next.gameIndex;
+      walkRegion = nextRegion;
     }
 
-    // Win probability from simulation cache
-    let winProb = 0.5;
-    const odds = gameOdds[game.id];
-    if (odds) {
-      winProb = pickedTeamId === game.team1Id ? odds.team1Prob : odds.team2Prob;
-    }
+    // Win probability from team advancement odds
+    const winProb = getTeamWinProb(pickedTeamId, game.round);
 
     const expectedValue = pointsIfCorrect * winProb - cascadeLoss * (1 - winProb);
 
-    const team1 = game.team1Id ? teamMap.get(game.team1Id) : null;
-    const team2 = game.team2Id ? teamMap.get(game.team2Id) : null;
+    // Resolve display teams for the matchup
+    const effectiveTeam1Id = resolveSlotTeam(game.region, game.round, game.gameIndex, "team1");
+    const effectiveTeam2Id = resolveSlotTeam(game.region, game.round, game.gameIndex, "team2");
+
+    const team1 = effectiveTeam1Id ? teamMap.get(effectiveTeam1Id) : null;
+    const team2 = effectiveTeam2Id ? teamMap.get(effectiveTeam2Id) : null;
 
     whatIfGames.push({
       gameId: game.id,
@@ -197,8 +272,8 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
     maxPossible += game.pointsIfCorrect;
   }
 
-  // Best possible rank: if user gets all remaining points, what rank?
-  const bestPossibleRank = sortedPoints.filter(([uid, pts]) => {
+  // Best possible rank
+  const bestPossibleRank = [...userPoints.entries()].filter(([uid, pts]) => {
     if (uid === userId) return false;
     return pts > maxPossible;
   }).length + 1;
