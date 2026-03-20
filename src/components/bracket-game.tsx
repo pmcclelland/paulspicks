@@ -417,7 +417,7 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
   }, [team.id, expanded, fetched]);
 
   return (
-    <div className="border-t border-[#BFD4E4]/50 pt-3">
+    <div>
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 w-full text-left"
@@ -882,9 +882,9 @@ export function InfoModal({
               )}
 
               {/* Team Details (expandable) */}
-              <div className="mt-4 space-y-1">
-                {team1 && <TeamDetailsSection team={team1} />}
-                {team2 && <TeamDetailsSection team={team2} />}
+              <div className="mt-4 border-t border-[#BFD4E4]/50 divide-y divide-[#BFD4E4]/50">
+                {team1 && <div className="py-3"><TeamDetailsSection team={team1} /></div>}
+                {team2 && <div className="py-3"><TeamDetailsSection team={team2} /></div>}
               </div>
             </>
           ) : activeTab === "kenpom" ? (
