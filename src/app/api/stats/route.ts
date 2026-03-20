@@ -100,8 +100,13 @@ export async function GET() {
     const seedStats: Record<number, { wins: number; losses: number; teamsRemaining: number }> = {};
     for (let s = 1; s <= 16; s++) seedStats[s] = { wins: 0, losses: 0, teamsRemaining: 0 };
 
-    // Filter to valid tournament teams (seeds 1-16)
-    const tournamentTeams = allTeams.filter((t) => t.seed >= 1 && t.seed <= 16);
+    // Filter to teams actually in the bracket (assigned to a game), with valid seeds
+    const teamsInBracket = new Set<number>();
+    for (const game of allGames) {
+      if (game.team1Id) teamsInBracket.add(game.team1Id);
+      if (game.team2Id) teamsInBracket.add(game.team2Id);
+    }
+    const tournamentTeams = allTeams.filter((t) => t.seed >= 1 && t.seed <= 16 && teamsInBracket.has(t.id));
 
     // Track eliminated teams
     const eliminatedTeamIds = new Set<number>();
