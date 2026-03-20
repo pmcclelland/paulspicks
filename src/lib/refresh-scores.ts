@@ -110,7 +110,8 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         team2Score: event.team2Score,
         status: event.status,
         winnerTeamId: winnerDbId,
-        espnEventId: event.espnEventId || dbGame.espnEventId,
+        espnEventId: dbGame.espnEventId
+          || (event.espnEventId && !allGames.some(g => g.espnEventId === event.espnEventId) ? event.espnEventId : null),
         startTime: event.startTime || dbGame.startTime,
         venue: event.venue || dbGame.venue,
         broadcast: event.broadcast || dbGame.broadcast,
