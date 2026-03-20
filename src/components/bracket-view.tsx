@@ -298,10 +298,17 @@ export default function BracketView({
         effectiveTeam2Id = actualWinner || userPick || null;
       }
 
+      // If the effective team order is swapped relative to the DB, swap moneylines too
+      const isSwapped = game.team1Id && game.team2Id
+        && effectiveTeam1Id === game.team2Id
+        && effectiveTeam2Id === game.team1Id;
+
       return {
         ...game,
         team1Id: effectiveTeam1Id,
         team2Id: effectiveTeam2Id,
+        moneylineTeam1: isSwapped ? game.moneylineTeam2 : game.moneylineTeam1,
+        moneylineTeam2: isSwapped ? game.moneylineTeam1 : game.moneylineTeam2,
       };
     });
   }, [games, userPicks, getFeederGames]);
