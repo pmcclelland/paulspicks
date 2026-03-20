@@ -40,6 +40,7 @@ export default function NavBar() {
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
               { href: "/leaderboard", label: "Leaderboard" },
+              { href: "/stats", label: "Stats" },
             ].map((link) => {
               const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
               return (
@@ -134,6 +135,7 @@ export default function NavBar() {
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
               { href: "/leaderboard", label: "Leaderboard" },
+              { href: "/stats", label: "Stats" },
             ].map((link) => {
               const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
               return (
