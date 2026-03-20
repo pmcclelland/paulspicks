@@ -89,6 +89,20 @@ type StatsData = {
       score: string;
     }[];
   };
+  playerLeaders: {
+    points: PlayerLeader[];
+    rebounds: PlayerLeader[];
+    assists: PlayerLeader[];
+    blocks: PlayerLeader[];
+  };
+};
+
+type PlayerLeader = {
+  name: string;
+  team: TeamInfo | null;
+  total: number;
+  gamesPlayed: number;
+  perGame: number;
 };
 
 export default function StatsPage() {
@@ -520,6 +534,18 @@ export default function StatsPage() {
           </div>
         </div>
       </Section>
+
+      {/* Player Leaders */}
+      {stats.playerLeaders && (stats.playerLeaders.points.length > 0 || stats.playerLeaders.rebounds.length > 0) && (
+        <Section title="Player Leaders">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <LeaderColumn title="Scoring" statLabel="PTS" leaders={stats.playerLeaders.points} />
+            <LeaderColumn title="Rebounding" statLabel="REB" leaders={stats.playerLeaders.rebounds} />
+            <LeaderColumn title="Assists" statLabel="AST" leaders={stats.playerLeaders.assists} />
+            <LeaderColumn title="Blocks" statLabel="BLK" leaders={stats.playerLeaders.blocks} />
+          </div>
+        </Section>
+      )}
     </div>
   );
 }
@@ -637,5 +663,38 @@ function ConferenceCard({ conf }: { conf: StatsData["conferencePerformance"][0] 
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function LeaderColumn({ title, statLabel, leaders }: { title: string; statLabel: string; leaders: PlayerLeader[] }) {
+  return (
+    <div>
+      <h3 className="text-sm font-medium text-[#5A7A99] mb-3 uppercase tracking-wider">{title}</h3>
+      {leaders.length > 0 ? (
+        <div className="space-y-2">
+          {leaders.map((p, i) => (
+            <Card key={i}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <span className="text-sm font-bold text-[#BFD4E4] w-5 text-center">{i + 1}</span>
+                {p.team && <TeamLogo team={p.team} />}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-[#1B365D] truncate">{p.name}</p>
+                  <p className="text-[10px] text-[#5A7A99]">
+                    {p.team ? schoolName(p.team.name) : ""}
+                    {p.gamesPlayed > 1 ? ` · ${p.gamesPlayed} games` : ""}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-[#F4793B]">{p.total}</p>
+                  <p className="text-[10px] text-[#5A7A99]">{p.perGame} {statLabel}/g</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card><CardContent className="p-6 text-center text-[#5A7A99] text-sm">No data yet.</CardContent></Card>
+      )}
+    </div>
   );
 }

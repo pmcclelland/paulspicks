@@ -36,6 +36,13 @@
       "when": 1773969201163,
       "tag": "0004_tiny_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1773970620728,
+      "tag": "0005_broad_black_queen",
+      "breakpoints": true
     }
   ]
 }

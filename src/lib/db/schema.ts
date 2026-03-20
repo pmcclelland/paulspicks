@@ -95,6 +95,29 @@ export const kenpomRankings = sqliteTable("kenpom_rankings", {
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
+export const playerStats = sqliteTable("player_stats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  gameId: integer("game_id").notNull().references(() => games.id),
+  espnAthleteId: text("espn_athlete_id").notNull(),
+  name: text("name").notNull(),
+  teamId: integer("team_id").references(() => teams.id),
+  minutes: integer("minutes").default(0),
+  points: integer("points").default(0),
+  rebounds: integer("rebounds").default(0),
+  assists: integer("assists").default(0),
+  steals: integer("steals").default(0),
+  blocks: integer("blocks").default(0),
+  turnovers: integer("turnovers").default(0),
+  fgMade: integer("fg_made").default(0),
+  fgAttempted: integer("fg_attempted").default(0),
+  threePtMade: integer("three_pt_made").default(0),
+  threePtAttempted: integer("three_pt_attempted").default(0),
+  ftMade: integer("ft_made").default(0),
+  ftAttempted: integer("ft_attempted").default(0),
+}, (table) => [
+  uniqueIndex("player_stats_game_athlete_unique").on(table.gameId, table.espnAthleteId),
+]);
+
 export const appState = sqliteTable("app_state", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

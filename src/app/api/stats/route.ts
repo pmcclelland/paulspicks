@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { games, teams, kenpomRankings, picks, users } from "@/lib/db/schema";
+import { games, teams, kenpomRankings, picks, users, playerStats } from "@/lib/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { schoolName } from "@/lib/school-names";
 import { ROUND_NAMES } from "@/lib/bracket-utils";
 import { refreshScoresIfStale } from "@/lib/refresh-scores";
@@ -386,6 +387,155 @@ export async function GET() {
     }
     kenpomUpsets.sort((a, b) => b.rankDiff - a.rankDiff);
 
+    // --- Player Leaders ---
+    // Fetch box scores from ESPN for completed games that don't have player stats yet
+    const existingStatGameIds = new Set(
+      (await db.select({ gameId: playerStats.gameId }).from(playerStats)).map((r) => r.gameId)
+    );
+    const gamesToFetch = completedGames.filter(
+      (g) => g.espnEventId && !existingStatGameIds.has(g.id)
+    );
+
+    const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
+    // Fetch up to 5 at a time to avoid slow requests on first load
+    for (const game of gamesToFetch.slice(0, 5)) {
+      try {
+        const res = await fetch(`${ESPN_BASE}/summary?event=${game.espnEventId}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const boxPlayers = data?.boxscore?.players || [];
+        for (const teamBox of boxPlayers) {
+          const espnTeamId = teamBox?.team?.id;
+          const dbTeam = espnTeamId ? allTeams.find((t) => t.espnTeamId === espnTeamId) : null;
+          const stats = teamBox?.statistics?.[0];
+          if (!stats?.athletes) continue;
+          const labels: string[] = stats.labels || [];
+          const ptsIdx = labels.indexOf("PTS");
+          const rebIdx = labels.indexOf("REB");
+          const astIdx = labels.indexOf("AST");
+          const stlIdx = labels.indexOf("STL");
+          const blkIdx = labels.indexOf("BLK");
+          const toIdx = labels.indexOf("TO");
+          const minIdx = labels.indexOf("MIN");
+          const fgIdx = labels.indexOf("FG");
+          const tpIdx = labels.indexOf("3PT");
+          const ftIdx = labels.indexOf("FT");
+
+          for (const athlete of stats.athletes) {
+            const s = athlete.stats || [];
+            if (!s.length || s[0] === "--") continue; // DNP
+            const espnAthleteId = athlete.athlete?.id || "";
+            const name = athlete.athlete?.displayName || "";
+            if (!espnAthleteId || !name) continue;
+
+            function parseNum(idx: number): number {
+              return idx >= 0 && s[idx] ? parseInt(s[idx], 10) || 0 : 0;
+            }
+            function parseFrac(idx: number): [number, number] {
+              if (idx < 0 || !s[idx]) return [0, 0];
+              const parts = s[idx].split("-");
+              return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0];
+            }
+
+            const [fgM, fgA] = parseFrac(fgIdx);
+            const [tpM, tpA] = parseFrac(tpIdx);
+            const [ftM, ftA] = parseFrac(ftIdx);
+
+            try {
+              await db.insert(playerStats).values({
+                gameId: game.id,
+                espnAthleteId,
+                name,
+                teamId: dbTeam?.id ?? null,
+                minutes: parseNum(minIdx),
+                points: parseNum(ptsIdx),
+                rebounds: parseNum(rebIdx),
+                assists: parseNum(astIdx),
+                steals: parseNum(stlIdx),
+                blocks: parseNum(blkIdx),
+                turnovers: parseNum(toIdx),
+                fgMade: fgM,
+                fgAttempted: fgA,
+                threePtMade: tpM,
+                threePtAttempted: tpA,
+                ftMade: ftM,
+                ftAttempted: ftA,
+              });
+            } catch {
+              // Ignore duplicates
+            }
+          }
+        }
+      } catch {
+        // Skip failed fetches
+      }
+    }
+
+    // Aggregate player leaders from cached stats
+    const allPlayerStats = await db.select().from(playerStats);
+
+    // Aggregate by player (espnAthleteId)
+    const playerAgg: Record<string, {
+      name: string;
+      espnAthleteId: string;
+      teamId: number | null;
+      gamesPlayed: number;
+      totalPoints: number;
+      totalRebounds: number;
+      totalAssists: number;
+      totalBlocks: number;
+      totalSteals: number;
+    }> = {};
+
+    for (const ps of allPlayerStats) {
+      if (!playerAgg[ps.espnAthleteId]) {
+        playerAgg[ps.espnAthleteId] = {
+          name: ps.name,
+          espnAthleteId: ps.espnAthleteId,
+          teamId: ps.teamId,
+          gamesPlayed: 0,
+          totalPoints: 0,
+          totalRebounds: 0,
+          totalAssists: 0,
+          totalBlocks: 0,
+          totalSteals: 0,
+        };
+      }
+      const p = playerAgg[ps.espnAthleteId];
+      p.gamesPlayed++;
+      p.totalPoints += ps.points ?? 0;
+      p.totalRebounds += ps.rebounds ?? 0;
+      p.totalAssists += ps.assists ?? 0;
+      p.totalBlocks += ps.blocks ?? 0;
+      p.totalSteals += ps.steals ?? 0;
+    }
+
+    const playerList = Object.values(playerAgg);
+
+    function buildLeaderboard(sortKey: "totalPoints" | "totalRebounds" | "totalAssists" | "totalBlocks" | "totalSteals", perGameKey: string) {
+      return playerList
+        .filter((p) => p.gamesPlayed > 0)
+        .sort((a, b) => b[sortKey] - a[sortKey])
+        .slice(0, 5)
+        .map((p) => {
+          const team = p.teamId ? teamMap.get(p.teamId) : null;
+          return {
+            name: p.name,
+            team: team ? { name: team.name, abbreviation: team.abbreviation, seed: team.seed, logoUrl: team.logoUrl } : null,
+            total: p[sortKey],
+            gamesPlayed: p.gamesPlayed,
+            perGame: Math.round((p[sortKey] / p.gamesPlayed) * 10) / 10,
+          };
+        });
+    }
+
+    const playerLeaders = {
+      points: buildLeaderboard("totalPoints", "ppg"),
+      rebounds: buildLeaderboard("totalRebounds", "rpg"),
+      assists: buildLeaderboard("totalAssists", "apg"),
+      blocks: buildLeaderboard("totalBlocks", "bpg"),
+    };
+
     return NextResponse.json({
       summary,
       upsets: {
@@ -408,6 +558,7 @@ export async function GET() {
         topRemainingByAdjEM,
         biggestKenpomUpsets: kenpomUpsets.slice(0, 5),
       },
+      playerLeaders,
     });
   } catch (error) {
     console.error("Stats error:", error);
