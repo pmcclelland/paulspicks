@@ -264,7 +264,11 @@ export async function computeWhatIf(userId: number): Promise<WhatIfResult> {
   }
 
   // Sort by absolute expected value descending
-  whatIfGames.sort((a, b) => Math.abs(b.expectedValue) - Math.abs(a.expectedValue));
+  // Sort by round descending (championship first), then by region
+  whatIfGames.sort((a, b) => {
+    if (a.round !== b.round) return b.round - a.round;
+    return a.region.localeCompare(b.region);
+  });
 
   // Max possible points
   let maxPossible = currentPoints;

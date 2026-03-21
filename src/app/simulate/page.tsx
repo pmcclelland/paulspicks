@@ -473,7 +473,6 @@ function WhatIfTab() {
                     <TableHead className="text-right">If Win</TableHead>
                     <TableHead className="text-right">If Lose</TableHead>
                     <TableHead className="text-center">Win Prob</TableHead>
-                    <TableHead className="text-right">EV</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -539,9 +538,6 @@ function WhatIfTab() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className={`text-right font-mono text-sm font-bold ${game.expectedValue >= 0 ? "text-green-600" : "text-red-500"}`}>
-                          {game.expectedValue >= 0 ? "+" : ""}{Math.round(game.expectedValue)}
-                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -595,9 +591,7 @@ function WhatIfTab() {
                         -{game.cascadeLoss + game.pointsIfCorrect}
                         {game.cascadeLoss > 0 && <span className="text-[10px] text-red-400"> cascade</span>}
                       </span>
-                      <span className={`font-bold ml-auto ${game.expectedValue >= 0 ? "text-green-600" : "text-red-500"}`}>
-                        EV: {game.expectedValue >= 0 ? "+" : ""}{Math.round(game.expectedValue)}
-                      </span>
+                      <span className="text-xs font-mono text-[#5A7A99] ml-auto">{Math.round(game.winProbability * 100)}% win</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -801,19 +795,53 @@ export default function SimulatePage() {
 
       {/* Tabs */}
       <Tabs defaultValue={hasActualResults ? "live" : "clean"}>
-        <TabsList>
-          {hasActualResults && <TabsTrigger value="live">Live Odds</TabsTrigger>}
-          <TabsTrigger value="clean">Pre-Tournament</TabsTrigger>
-          <TabsTrigger value="pool">Pool Projections</TabsTrigger>
+        <TabsList className="bg-[#EFF5FA] h-auto rounded-lg p-1 w-fit gap-0.5">
+          {hasActualResults && (
+            <TabsTrigger
+              value="live"
+              className="h-auto rounded-md px-4 py-2 text-sm font-semibold text-[#5A7A99] transition-all
+                hover:text-[#1B365D]
+                data-active:bg-white data-active:text-[#1B365D] data-active:shadow-sm
+                dark:data-active:bg-white dark:data-active:border-transparent dark:data-active:text-[#1B365D]"
+            >
+              Live Odds
+            </TabsTrigger>
+          )}
+          <TabsTrigger
+            value="clean"
+            className="h-auto rounded-md px-4 py-2 text-sm font-semibold text-[#5A7A99] transition-all
+              hover:text-[#1B365D]
+              data-active:bg-white data-active:text-[#1B365D] data-active:shadow-sm
+              dark:data-active:bg-white dark:data-active:border-transparent dark:data-active:text-[#1B365D]"
+          >
+            Pre-Tournament
+          </TabsTrigger>
+          <TabsTrigger
+            value="pool"
+            className="h-auto rounded-md px-4 py-2 text-sm font-semibold text-[#5A7A99] transition-all
+              hover:text-[#1B365D]
+              data-active:bg-white data-active:text-[#1B365D] data-active:shadow-sm
+              dark:data-active:bg-white dark:data-active:border-transparent dark:data-active:text-[#1B365D]"
+          >
+            Pool Projections
+          </TabsTrigger>
           {session?.user && !session.user.isSpectator && (
-            <TabsTrigger value="whatif">My Bracket</TabsTrigger>
+            <TabsTrigger
+              value="whatif"
+              className="h-auto rounded-md px-4 py-2 text-sm font-semibold text-[#5A7A99] transition-all
+                hover:text-[#1B365D]
+                data-active:bg-white data-active:text-[#1B365D] data-active:shadow-sm
+                dark:data-active:bg-white dark:data-active:border-transparent dark:data-active:text-[#1B365D]"
+            >
+              My Bracket
+            </TabsTrigger>
           )}
         </TabsList>
 
         {/* Live Odds — accounts for actual results */}
         {hasActualResults && (
           <TabsContent value="live">
-            <div className="mb-4">
+            <div className="mb-4 mt-6">
               <p className="text-sm text-[#5A7A99]">
                 Accounts for {data.completedGames} completed game{data.completedGames !== 1 ? "s" : ""}. Eliminated teams show 0%. Remaining games simulated.
               </p>
@@ -829,7 +857,7 @@ export default function SimulatePage() {
 
         {/* Clean predictions — from scratch, no actual results */}
         <TabsContent value="clean">
-          <div className="mb-4">
+          <div className="mb-4 mt-6">
             <p className="text-sm text-[#5A7A99]">
               Pure pre-tournament predictions ignoring actual results. Simulates all 63 games from scratch as a control.
             </p>
@@ -844,7 +872,7 @@ export default function SimulatePage() {
 
         {/* Pool Projections — uses live simulation */}
         <TabsContent value="pool">
-          <div className="mb-4">
+          <div className="mb-4 mt-6">
             <p className="text-sm text-[#5A7A99]">
               {hasActualResults
                 ? `Each user's bracket scored against ${data.simulationCount.toLocaleString()} simulations of the remaining ${data.totalGames - data.completedGames} games.`
@@ -862,7 +890,7 @@ export default function SimulatePage() {
         {/* My Bracket — What If analysis */}
         {session?.user && !session.user.isSpectator && (
           <TabsContent value="whatif">
-            <div className="mb-4">
+            <div className="mb-4 mt-6">
               <p className="text-sm text-[#5A7A99]">
                 Game-by-game impact analysis for your bracket picks. Shows points at stake and cascade risk.
               </p>

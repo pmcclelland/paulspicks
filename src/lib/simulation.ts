@@ -101,9 +101,11 @@ function lookupAdjEM(
   const lower = teamName.toLowerCase();
   if (kenpomMap.has(lower)) return kenpomMap.get(lower)!;
 
-  // Substring fallback
+  // Substring fallback — strip parentheses for matching (e.g. "Miami (OH)" vs "Miami OH")
+  const schoolNorm = school.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
   for (const [kenpomName, em] of kenpomMap) {
-    if (kenpomName.includes(school) || school.includes(kenpomName)) {
+    const kenpomNorm = kenpomName.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+    if (kenpomNorm.includes(schoolNorm) || schoolNorm.includes(kenpomNorm)) {
       return em;
     }
   }
