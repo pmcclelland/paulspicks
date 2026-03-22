@@ -979,6 +979,7 @@ function TeamRow({
   result,
   isBusted,
   simPct,
+  simActive,
 }: {
   team: TeamData | null;
   score: number | null;
@@ -991,6 +992,7 @@ function TeamRow({
   result?: GameResult;
   isBusted?: boolean;
   simPct?: number;
+  simActive?: boolean;
 }) {
   if (!team) {
     return (
@@ -1015,7 +1017,7 @@ function TeamRow({
       {/* Sim probability fill — visible on group hover */}
       {simPct !== undefined && (
         <div
-          className="absolute inset-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+          className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none${simActive ? " !opacity-100" : ""}`}
           style={{
             background: `linear-gradient(90deg, ${simPct >= 50 ? "rgba(27,54,93,0.08)" : "rgba(244,121,59,0.08)"} ${simPct}%, transparent ${simPct}%)`,
           }}
@@ -1034,9 +1036,9 @@ function TeamRow({
       </div>
       {/* Sim percentage — fades in on hover */}
       {simPct !== undefined && (
-        <span className={`ml-1 flex-shrink-0 text-[10px] font-bold tabular-nums opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
+        <span className={`ml-1 flex-shrink-0 text-[10px] font-bold tabular-nums opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
           simPct >= 50 ? "text-[#1B365D]/50" : "text-[#F4793B]/60"
-        }`}>
+        }${simActive ? " !opacity-100" : ""}`}>
           {simPct}%
         </span>
       )}
@@ -1066,6 +1068,7 @@ export default function BracketGame({
   simProb,
 }: BracketGameProps) {
   const [showInfo, setShowInfo] = useState(false);
+  const [simActive, setSimActive] = useState(false);
 
   const playInSlot: "team1" | "team2" | null =
     playInTeams && playInTeams.length === 2
@@ -1092,7 +1095,7 @@ export default function BracketGame({
 
   return (
     <>
-      <div className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border group ${
+      <div onClick={() => setSimActive(prev => !prev)} className={`w-56 rounded-lg bg-white shadow-sm overflow-hidden border group ${
         isLive ? "border-green-400 ring-1 ring-green-400/20"
           : upsetInfo.level === "alert" ? "border-amber-500 ring-1 ring-amber-500/30"
           : upsetInfo.level === "potential" ? "border-amber-300 ring-1 ring-amber-300/30"
@@ -1135,6 +1138,7 @@ export default function BracketGame({
                   result={result}
                   isBusted={(!!team1Eliminated && pickedTeamId === team1?.id) || bustedPickSlot === "team1"}
                   simPct={simPct1}
+                  simActive={simActive}
                 />
               )}
             </div>
@@ -1155,6 +1159,7 @@ export default function BracketGame({
                   result={result}
                   isBusted={(!!team2Eliminated && pickedTeamId === team2?.id) || bustedPickSlot === "team2"}
                   simPct={simPct2}
+                  simActive={simActive}
                 />
               )}
             </div>

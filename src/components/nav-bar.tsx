@@ -35,7 +35,7 @@ export default function NavBar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:gap-1">
+          <div className="hidden lg:flex lg:items-center lg:gap-1">
             {[
               { href: "/bracket", label: "Bracket" },
               { href: "/scores", label: "Scores" },
@@ -114,7 +114,7 @@ export default function NavBar() {
 
           {/* Mobile Hamburger */}
           <button
-            className="md:hidden p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors"
+            className="lg:hidden p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >
@@ -131,7 +131,7 @@ export default function NavBar() {
 
       {/* Mobile Menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-white/[0.06] bg-[#0F1E33]/98 backdrop-blur-md">
+        <div className="lg:hidden border-t border-white/[0.06] bg-[#0F1E33]/98 backdrop-blur-md">
           <div className="px-4 py-3 space-y-1">
             {[
               { href: "/bracket", label: "Bracket" },
