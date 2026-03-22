@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const publicRoutes = ["/", "/login", "/register"];
+const publicRoutes = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -17,6 +17,11 @@ export function proxy(request: NextRequest) {
 
   // Allow register API (needed before login)
   if (path === "/api/register") {
+    return NextResponse.next();
+  }
+
+  // Allow password reset APIs
+  if (path === "/api/forgot-password" || path === "/api/reset-password") {
     return NextResponse.next();
   }
 

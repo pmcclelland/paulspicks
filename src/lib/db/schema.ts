@@ -118,6 +118,15 @@ export const playerStats = sqliteTable("player_stats", {
   uniqueIndex("player_stats_game_athlete_unique").on(table.gameId, table.espnAthleteId),
 ]);
 
+export const passwordResetTokens = sqliteTable("password_reset_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  token: text("token").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
 export const appState = sqliteTable("app_state", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
