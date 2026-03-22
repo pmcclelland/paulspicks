@@ -19,6 +19,7 @@ export type GameResult = {
   team1Score: number | null;
   team2Score: number | null;
   status: string;
+  statusDetail?: string | null;
 };
 
 export type GameInfo = {
@@ -892,6 +893,9 @@ export function InfoModal({
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
                   </span>
                   <span className="text-sm font-bold text-green-600 uppercase">Live</span>
+                  {result.statusDetail && (
+                    <span className="text-sm font-semibold text-[#5A7A99]">&middot; {result.statusDetail}</span>
+                  )}
                 </div>
               )}
               {result?.status === "final" && (

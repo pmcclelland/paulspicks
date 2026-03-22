@@ -101,7 +101,7 @@ export default function ScoreCard({
 
   const result: GameResult | undefined =
     status !== "scheduled"
-      ? { winnerTeamId: winnerTeamId ?? null, team1Score, team2Score, status }
+      ? { winnerTeamId: winnerTeamId ?? null, team1Score, team2Score, status, statusDetail }
       : undefined;
 
   const gameInfo: GameInfo = {

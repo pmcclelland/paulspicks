@@ -21,6 +21,7 @@ export type GameData = {
   team1Score: number | null;
   team2Score: number | null;
   status: string;
+  statusDetail?: string | null;
   startTime?: string | null;
   venue?: string | null;
   broadcast?: string | null;
@@ -70,6 +71,7 @@ function renderGameCard(
           team1Score: game.team1Score,
           team2Score: game.team2Score,
           status: game.status,
+          statusDetail: game.statusDetail,
         }
       : undefined;
 
