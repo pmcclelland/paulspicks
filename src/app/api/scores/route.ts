@@ -43,6 +43,7 @@ export async function GET() {
             if (g.round !== 0) continue;
             firstFourGames.push({
               id: `ff-${g.espnEventId}`,
+              espnEventId: g.espnEventId,
               round: 0,
               region: g.region,
               gameIndex: g.gameIndex,

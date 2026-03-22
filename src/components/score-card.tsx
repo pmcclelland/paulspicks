@@ -38,6 +38,7 @@ type ScoreCardProps = {
   moneylineTeam1?: string | null;
   moneylineTeam2?: string | null;
   oddsProvider?: string | null;
+  espnEventId?: string | null;
 };
 
 function getStatusBadge(status: string, statusDetail?: string | null) {
@@ -84,6 +85,7 @@ export default function ScoreCard({
   moneylineTeam1,
   moneylineTeam2,
   oddsProvider,
+  espnEventId,
 }: ScoreCardProps) {
   const [showInfo, setShowInfo] = useState(false);
 
@@ -115,6 +117,7 @@ export default function ScoreCard({
     moneylineTeam2,
     overUnder,
     oddsProvider,
+    espnEventId: espnEventId ?? undefined,
   };
 
   return (

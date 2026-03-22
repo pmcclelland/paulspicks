@@ -31,6 +31,7 @@ export type GameData = {
   moneylineTeam2?: string | null;
   overUnder?: string | null;
   oddsProvider?: string | null;
+  espnEventId?: string | null;
   /** When user's pick for this game is an eliminated team not in either slot */
   bustedPickSlot?: "team1" | "team2" | null;
   /** When effectiveGames swapped team1/team2 relative to DB */
@@ -92,6 +93,7 @@ function renderGameCard(
     moneylineTeam2: game.moneylineTeam2,
     overUnder: game.overUnder,
     oddsProvider: game.oddsProvider,
+    espnEventId: game.espnEventId,
   };
 
   return (

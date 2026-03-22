@@ -24,6 +24,7 @@ type GameWithTeams = {
   moneylineTeam2: string | null;
   overUnder: string | null;
   oddsProvider: string | null;
+  espnEventId: string | null;
   team1: {
     id: number;
     name: string;
@@ -189,6 +190,7 @@ function GameGrid({ games }: { games: GameWithTeams[] }) {
           moneylineTeam1={game.moneylineTeam1}
           moneylineTeam2={game.moneylineTeam2}
           oddsProvider={game.oddsProvider}
+          espnEventId={game.espnEventId}
         />
       ))}
     </div>

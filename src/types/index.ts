@@ -33,6 +33,65 @@ export type ESPNCompetitor = {
   homeAway?: string;
 };
 
+export type PlayerGameStats = {
+  name: string;
+  position: string;
+  minutes: number;
+  points: number;
+  rebounds: number;
+  assists: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  fgMade: number;
+  fgAttempted: number;
+  threePtMade: number;
+  threePtAttempted: number;
+  ftMade: number;
+  ftAttempted: number;
+};
+
+export type TeamGameStats = {
+  fgPct: string;
+  fgMadeAttempted: string;
+  threePtPct: string;
+  threePtMadeAttempted: string;
+  ftPct: string;
+  ftMadeAttempted: string;
+  totalRebounds: number;
+  offRebounds: number;
+  defRebounds: number;
+  assists: number;
+  turnovers: number;
+  steals: number;
+  blocks: number;
+  fouls: number;
+};
+
+export type GameLeader = {
+  name: string;
+  value: string;
+  headshot: string | null;
+};
+
+export type GameBoxScoreTeam = {
+  teamName: string;
+  abbreviation: string;
+  logoUrl: string | null;
+  stats: TeamGameStats;
+  players: PlayerGameStats[];
+  leaders: {
+    points: GameLeader | null;
+    rebounds: GameLeader | null;
+    assists: GameLeader | null;
+  };
+};
+
+export type GameBoxScore = {
+  team1: GameBoxScoreTeam;
+  team2: GameBoxScoreTeam;
+};
+
 export type ESPNEvent = {
   id: string;
   date: string;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { PlayInTeam } from "./bracket-region";
 import { fairProbabilities, formatOdds, detectUpset, type UpsetLevel } from "@/lib/odds";
 import { SocialBuzz } from "@/components/social-buzz";
+import GameStatsPanel from "@/components/game-stats-panel";
 
 export type TeamData = {
   id: number;
@@ -33,6 +34,7 @@ export type GameInfo = {
   moneylineTeam2?: string | null;
   overUnder?: string | null;
   oddsProvider?: string | null;
+  espnEventId?: string | null;
 };
 
 type BracketGameProps = {
@@ -707,7 +709,9 @@ export function InfoModal({
   upsetInfo?: { level: UpsetLevel; underdogSlot: "team1" | "team2" | null; probability: number };
   simProb?: { team1Prob: number; team2Prob: number };
 }) {
+  const hasBoxScore = gameInfo?.espnEventId && (result?.status === "in_progress" || result?.status === "final");
   const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom" | "buzz">("matchup");
+  const [showBoxScore, setShowBoxScore] = useState(false);
   const [records, setRecords] = useState<{ team1?: string; team2?: string }>({});
 
   useEffect(() => {
@@ -892,6 +896,30 @@ export function InfoModal({
               )}
               {result?.status === "final" && (
                 <div className="mt-4 text-center text-sm font-bold text-[#5A7A99] uppercase">Final</div>
+              )}
+
+              {/* Box Score (expandable) */}
+              {hasBoxScore && (
+                <div className="mt-4 border-t border-[#BFD4E4]/50">
+                  <button
+                    onClick={() => setShowBoxScore(!showBoxScore)}
+                    className="flex items-center justify-center gap-1.5 w-full py-2.5 text-xs font-semibold text-[#5A7A99] hover:text-[#1B365D] transition-colors"
+                    type="button"
+                  >
+                    <svg
+                      className={`w-3 h-3 transition-transform ${showBoxScore ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Box Score
+                  </button>
+                  {showBoxScore && (
+                    <GameStatsPanel espnEventId={gameInfo!.espnEventId!} status={result!.status} />
+                  )}
+                </div>
               )}
 
               {(gameInfo?.startTime || gameInfo?.venue || gameInfo?.broadcast) && (
