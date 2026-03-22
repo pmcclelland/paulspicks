@@ -53,6 +53,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [uniquePicks, setUniquePicks] = useState<UniquePick[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [simBracketUserId, setSimBracketUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -71,7 +72,14 @@ export default function LeaderboardPage() {
         }
 
         const leaderboardData = await leaderboardRes.json();
-        const mapped = (Array.isArray(leaderboardData) ? leaderboardData : []).map(
+        // Support both old (array) and new (object with leaderboard + simBracketUserId) formats
+        const leaderboardArray = Array.isArray(leaderboardData)
+          ? leaderboardData
+          : leaderboardData.leaderboard ?? [];
+        if (leaderboardData.simBracketUserId) {
+          setSimBracketUserId(leaderboardData.simBracketUserId);
+        }
+        const mapped = leaderboardArray.map(
           (entry: any) => ({
             ...entry,
             roundPoints: entry.roundBreakdown || [0, 0, 0, 0, 0, 0],
@@ -131,7 +139,7 @@ export default function LeaderboardPage() {
           </p>
         </div>
       ) : (
-        <LeaderboardTable entries={entries} badges={badges} />
+        <LeaderboardTable entries={entries} badges={badges} simBracketUserId={simBracketUserId} />
       )}
 
       {uniquePicks.length > 0 && <UniquePicks picks={uniquePicks} />}

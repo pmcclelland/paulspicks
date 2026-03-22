@@ -47,9 +47,25 @@ type SortField = "rank" | "totalPoints" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
   badges?: Badge[];
+  simBracketUserId?: number | null;
 };
 
-export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTableProps) {
+function RobotIcon() {
+  return (
+    <svg className="w-4 h-4 text-[#5A7A99]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="8" width="16" height="12" rx="2" />
+      <path d="M12 8V4" />
+      <circle cx="12" cy="3" r="1" />
+      <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+      <path d="M9 18h6" />
+      <path d="M2 12v4" />
+      <path d="M22 12v4" />
+    </svg>
+  );
+}
+
+export default function LeaderboardTable({ entries, badges = [], simBracketUserId }: LeaderboardTableProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [sortField, setSortField] = useState<SortField>("rank");
@@ -201,19 +217,25 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
           <TableBody>
             {sorted.map((entry) => {
               const isCurrentUser = currentUserId === entry.userId;
+              const isSimBracket = simBracketUserId != null && entry.userId === simBracketUserId;
               return (
                 <TableRow
                   key={entry.userId}
                   className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
-                      : ""
+                      : isSimBracket
+                        ? "bg-[#1B365D]/[0.03]"
+                        : ""
                   }`}
-                  onClick={() => handleRowClick(entry.userId)}
+                  onClick={() => isSimBracket ? router.push("/sim-bracket") : handleRowClick(entry.userId)}
                 >
                   <TableCell className="font-mono">{entry.rank}</TableCell>
                   <TableCell>
                     <span className="flex items-center">
+                      {isSimBracket && (
+                        <span className="mr-1.5 flex-shrink-0"><RobotIcon /></span>
+                      )}
                       <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
                         {entry.name}
                       </span>
@@ -310,20 +332,26 @@ export default function LeaderboardTable({ entries, badges = [] }: LeaderboardTa
           <TableBody>
             {sorted.map((entry) => {
               const isCurrentUser = currentUserId === entry.userId;
+              const isSimBracket = simBracketUserId != null && entry.userId === simBracketUserId;
               return (
                 <TableRow
                   key={entry.userId}
                   className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
-                      : ""
+                      : isSimBracket
+                        ? "bg-[#1B365D]/[0.03]"
+                        : ""
                   }`}
-                  onClick={() => handleRowClick(entry.userId)}
+                  onClick={() => isSimBracket ? router.push("/sim-bracket") : handleRowClick(entry.userId)}
                 >
                   <TableCell className="font-mono">{entry.rank}</TableCell>
                   <TableCell>
                     <div>
                       <span className="flex items-center">
+                        {isSimBracket && (
+                          <span className="mr-1 flex-shrink-0"><RobotIcon /></span>
+                        )}
                         <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
                           {entry.name}
                         </span>

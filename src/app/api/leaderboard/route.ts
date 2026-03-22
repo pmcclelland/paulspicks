@@ -128,7 +128,16 @@ export async function GET() {
       leaderboard[i].rank = currentRank;
     }
 
-    return NextResponse.json(leaderboard);
+    // Get sim bracket user ID if it exists
+    const simUserState = await db
+      .select()
+      .from(schema.appState)
+      .where(eq(schema.appState.key, "sim_bracket_user_id"));
+    const simBracketUserId = simUserState.length > 0
+      ? parseInt(simUserState[0].value)
+      : null;
+
+    return NextResponse.json({ leaderboard, simBracketUserId });
   } catch (error) {
     console.error("Leaderboard error:", error);
     return NextResponse.json(

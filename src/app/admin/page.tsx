@@ -175,7 +175,7 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
             <Button
               onClick={() =>
                 handleAction("/api/admin/seed", "Seed Tournament")
@@ -214,6 +214,18 @@ export default function AdminPage() {
                 : stats?.locked
                   ? "Unlock Picks"
                   : "Lock Picks"}
+            </Button>
+
+            <Button
+              onClick={() =>
+                handleAction("/api/admin/sim-bracket", "Generate Sim Bracket")
+              }
+              disabled={actionLoading !== null}
+              variant="outline"
+            >
+              {actionLoading === "Generate Sim Bracket"
+                ? "Generating..."
+                : "Generate Sim Bracket"}
             </Button>
           </div>
         </CardContent>

@@ -606,6 +606,7 @@ function WhatIfTab() {
 
 export default function SimulatePage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [data, setData] = useState<SimulationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -787,6 +788,38 @@ export default function SimulatePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sim Bracket Link */}
+      <Card
+        className="border-[#1B365D]/20 cursor-pointer hover:border-[#F4793B]/40 transition-colors"
+        onClick={() => router.push("/sim-bracket")}
+      >
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#1B365D]/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#1B365D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="8" width="16" height="12" rx="2" />
+                <path d="M12 8V4" />
+                <circle cx="12" cy="3" r="1" />
+                <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+                <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+                <path d="M9 18h6" />
+                <path d="M2 12v4" />
+                <path d="M22 12v4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#1B365D]">Sim Bracket</p>
+              <p className="text-xs text-[#5A7A99]">
+                See how a &ldquo;perfectly rational&rdquo; bracket performs against the pool
+              </p>
+            </div>
+          </div>
+          <svg className="w-4 h-4 text-[#BFD4E4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </CardContent>
+      </Card>
 
       {/* Injury Impact Summary */}
       {data.injuredTeams.length > 0 && (
