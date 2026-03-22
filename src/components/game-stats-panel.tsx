@@ -55,7 +55,7 @@ export default function GameStatsPanel({ espnEventId, status }: GameStatsPanelPr
 
   if (error || !data) {
     return (
-      <p className="text-xs text-muted-foreground text-center py-4">
+      <p className="text-sm text-muted-foreground text-center py-4">
         Box score unavailable
       </p>
     );
@@ -70,12 +70,12 @@ export default function GameStatsPanel({ espnEventId, status }: GameStatsPanelPr
   return (
     <div>
       {/* Sub-tabs */}
-      <div className="flex border-b border-[#BFD4E4]/50 mb-3">
+      <div className="flex border-b border-[#BFD4E4]/50 mb-4">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 pb-2 text-[11px] font-semibold transition-colors ${
+            className={`flex-1 pb-2.5 text-xs font-semibold transition-colors ${
               tab === t.key
                 ? "text-[#1B365D] border-b-2 border-[#F4793B]"
                 : "text-[#5A7A99] hover:text-[#1B365D]"
@@ -114,17 +114,17 @@ const LEADER_CATEGORIES: { key: "points" | "rebounds" | "assists"; label: string
 
 function GameLeadersView({ team1, team2 }: { team1: TeamRef; team2: TeamRef }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {LEADER_CATEGORIES.map(({ key, label }) => {
         const l1 = team1.leaders[key];
         const l2 = team2.leaders[key];
         if (!l1 && !l2) return null;
         return (
           <div key={key}>
-            <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1.5">
+            <div className="text-xs font-bold text-[#5A7A99] uppercase tracking-wider mb-2">
               {label}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <LeaderCard leader={l1} team={team1} />
               <LeaderCard leader={l2} team={team2} />
             </div>
@@ -137,31 +137,31 @@ function GameLeadersView({ team1, team2 }: { team1: TeamRef; team2: TeamRef }) {
 
 function LeaderCard({ leader, team }: { leader: GameLeader | null; team: TeamRef }) {
   if (!leader) {
-    return <div className="rounded-lg bg-[#EFF5FA] p-2 text-center text-[10px] text-[#5A7A99]">—</div>;
+    return <div className="rounded-lg bg-[#EFF5FA] p-3 text-center text-xs text-[#5A7A99]">—</div>;
   }
 
   return (
-    <div className="rounded-lg bg-[#EFF5FA] p-2 flex items-center gap-2">
+    <div className="rounded-lg bg-[#EFF5FA] p-3 flex items-center gap-2.5">
       {leader.headshot ? (
         <img
           src={leader.headshot}
           alt=""
-          className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white"
+          className="w-10 h-10 rounded-full object-cover flex-shrink-0 bg-white"
         />
       ) : (
-        <div className="w-8 h-8 rounded-full bg-[#BFD4E4] flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-[#BFD4E4] flex items-center justify-center flex-shrink-0">
           {team.logoUrl ? (
-            <img src={team.logoUrl} alt="" className="w-5 h-5 object-contain" />
+            <img src={team.logoUrl} alt="" className="w-6 h-6 object-contain" />
           ) : (
-            <span className="text-[9px] font-bold text-[#5A7A99]">{team.abbreviation.slice(0, 2)}</span>
+            <span className="text-[10px] font-bold text-[#5A7A99]">{team.abbreviation.slice(0, 2)}</span>
           )}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-[11px] font-semibold text-[#1B365D] truncate">{leader.name}</div>
-        <div className="text-[10px] text-[#5A7A99]">{team.abbreviation}</div>
+        <div className="text-sm font-semibold text-[#1B365D] truncate">{leader.name}</div>
+        <div className="text-xs text-[#5A7A99]">{team.abbreviation}</div>
       </div>
-      <div className="text-lg font-bold font-mono text-[#1B365D] tabular-nums flex-shrink-0">
+      <div className="text-xl font-bold font-mono text-[#1B365D] tabular-nums flex-shrink-0">
         {leader.value}
       </div>
     </div>
@@ -195,18 +195,18 @@ function TeamStatsView({ team1, team2 }: { team1: TeamRef; team2: TeamRef }) {
   return (
     <div>
       {/* Team header with logos */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          {team1.logoUrl && <img src={team1.logoUrl} alt="" className="w-5 h-5 object-contain" />}
-          <span className="text-xs font-bold text-[#1B365D]">{team1.abbreviation}</span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {team1.logoUrl && <img src={team1.logoUrl} alt="" className="w-6 h-6 object-contain" />}
+          <span className="text-sm font-bold text-[#1B365D]">{team1.abbreviation}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-[#1B365D]">{team2.abbreviation}</span>
-          {team2.logoUrl && <img src={team2.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-[#1B365D]">{team2.abbreviation}</span>
+          {team2.logoUrl && <img src={team2.logoUrl} alt="" className="w-6 h-6 object-contain" />}
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {STAT_ROWS.map(({ label, key, format, madeAttempted }) => {
           const v1 = (team1.stats as any)[key];
           const v2 = (team2.stats as any)[key];
@@ -229,23 +229,23 @@ function TeamStatsView({ team1, team2 }: { team1: TeamRef; team2: TeamRef }) {
 
           return (
             <div key={key}>
-              <div className="flex items-center justify-between text-[10px] text-[#5A7A99] mb-0.5">
+              <div className="flex items-center justify-between text-xs text-[#5A7A99] mb-0.5">
                 <span
                   className={`font-mono tabular-nums ${t1Better ? "text-[#F4793B] font-bold" : "text-[#1B365D] font-semibold"}`}
                 >
                   {formatVal(v1)}
-                  {ma1 && <span className="text-[#5A7A99] font-normal ml-0.5">({ma1})</span>}
+                  {ma1 && <span className="text-[#5A7A99] font-normal ml-1">({ma1})</span>}
                 </span>
                 <span className="font-medium">{label}</span>
                 <span
                   className={`font-mono tabular-nums ${t2Better ? "text-[#F4793B] font-bold" : "text-[#1B365D] font-semibold"}`}
                 >
-                  {ma2 && <span className="text-[#5A7A99] font-normal mr-0.5">({ma2})</span>}
+                  {ma2 && <span className="text-[#5A7A99] font-normal mr-1">({ma2})</span>}
                   {formatVal(v2)}
                 </span>
               </div>
               {/* Comparison bar */}
-              <div className="flex h-1.5 rounded-full overflow-hidden bg-[#EFF5FA]">
+              <div className="flex h-2 rounded-full overflow-hidden bg-[#EFF5FA]">
                 <div
                   className={`transition-all duration-300 rounded-l-full ${t1Better ? "bg-[#F4793B]" : "bg-[#1B365D]/30"}`}
                   style={{ width: `${pct1}%` }}
@@ -279,13 +279,13 @@ function PlayersView({
   const limit = showAll ? Infinity : 5;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PlayerTable team={team1} limit={limit} />
       <PlayerTable team={team2} limit={limit} />
       {(team1.players.length > 5 || team2.players.length > 5) && (
         <button
           onClick={onToggleShowAll}
-          className="text-[11px] text-[#F4793B] hover:underline w-full text-center font-semibold"
+          className="text-xs text-[#F4793B] hover:underline w-full text-center font-semibold"
         >
           {showAll ? "Show top players" : "Show all players"}
         </button>
@@ -301,20 +301,20 @@ function PlayerTable({ team, limit }: { team: TeamRef; limit: number }) {
   return (
     <div>
       {/* Team header */}
-      <div className="flex items-center gap-1.5 mb-1.5">
-        {team.logoUrl && <img src={team.logoUrl} alt="" className="w-4 h-4 object-contain" />}
-        <span className="text-[11px] font-bold text-[#1B365D]">{team.abbreviation}</span>
+      <div className="flex items-center gap-2 mb-2">
+        {team.logoUrl && <img src={team.logoUrl} alt="" className="w-5 h-5 object-contain" />}
+        <span className="text-sm font-bold text-[#1B365D]">{team.abbreviation}</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] border-collapse">
+        <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="border-b border-[#BFD4E4]/50">
-              <th className="text-left font-semibold text-[#5A7A99] pr-1 py-1">Player</th>
-              <th className="text-right font-semibold text-[#5A7A99] px-1 py-1 w-7">MIN</th>
-              <th className="text-right font-semibold text-[#5A7A99] px-1 py-1 w-7">PTS</th>
-              <th className="text-right font-semibold text-[#5A7A99] px-1 py-1 w-10">FG</th>
-              <th className="text-right font-semibold text-[#5A7A99] px-1 py-1 w-7">REB</th>
-              <th className="text-right font-semibold text-[#5A7A99] px-1 py-1 w-7">AST</th>
+              <th className="text-left font-semibold text-[#5A7A99] pr-2 py-1.5">Player</th>
+              <th className="text-right font-semibold text-[#5A7A99] px-1.5 py-1.5 w-8">MIN</th>
+              <th className="text-right font-semibold text-[#5A7A99] px-1.5 py-1.5 w-8">PTS</th>
+              <th className="text-right font-semibold text-[#5A7A99] px-1.5 py-1.5 w-12">FG</th>
+              <th className="text-right font-semibold text-[#5A7A99] px-1.5 py-1.5 w-8">REB</th>
+              <th className="text-right font-semibold text-[#5A7A99] px-1.5 py-1.5 w-8">AST</th>
             </tr>
           </thead>
           <tbody>
@@ -323,23 +323,23 @@ function PlayerTable({ team, limit }: { team: TeamRef; limit: number }) {
                 key={i}
                 className={`border-b border-[#EFF5FA] ${i === 0 ? "bg-[#EFF5FA]/50" : ""}`}
               >
-                <td className="text-left pr-1 py-1.5 max-w-[90px]">
+                <td className="text-left pr-2 py-2 max-w-[110px]">
                   <div className="truncate text-[#1B365D] font-medium">{p.name}</div>
-                  <div className="text-[9px] text-[#5A7A99]">{p.position}</div>
+                  <div className="text-[10px] text-[#5A7A99]">{p.position}</div>
                 </td>
-                <td className="text-right font-mono text-[#5A7A99] px-1 py-1.5 tabular-nums">
+                <td className="text-right font-mono text-[#5A7A99] px-1.5 py-2 tabular-nums">
                   {p.minutes}
                 </td>
-                <td className="text-right font-mono text-[#1B365D] font-bold px-1 py-1.5 tabular-nums">
+                <td className="text-right font-mono text-[#1B365D] font-bold px-1.5 py-2 tabular-nums">
                   {p.points}
                 </td>
-                <td className="text-right font-mono text-[#5A7A99] px-1 py-1.5 tabular-nums">
+                <td className="text-right font-mono text-[#5A7A99] px-1.5 py-2 tabular-nums">
                   {p.fgMade}-{p.fgAttempted}
                 </td>
-                <td className="text-right font-mono text-[#1B365D] px-1 py-1.5 tabular-nums">
+                <td className="text-right font-mono text-[#1B365D] px-1.5 py-2 tabular-nums">
                   {p.rebounds}
                 </td>
-                <td className="text-right font-mono text-[#1B365D] px-1 py-1.5 tabular-nums">
+                <td className="text-right font-mono text-[#1B365D] px-1.5 py-2 tabular-nums">
                   {p.assists}
                 </td>
               </tr>

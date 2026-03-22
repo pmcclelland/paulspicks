@@ -430,9 +430,9 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
         type="button"
       >
         {team.logoUrl && (
-          <img src={team.logoUrl} alt="" className="w-5 h-5 object-contain" />
+          <img src={team.logoUrl} alt="" className="w-6 h-6 object-contain" />
         )}
-        <span className="text-xs font-bold text-[#1B365D] uppercase tracking-wider flex-1">
+        <span className="text-sm font-bold text-[#1B365D] uppercase tracking-wider flex-1">
           {schoolName(team.name)}
         </span>
         <svg
@@ -458,29 +458,29 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
             <>
               {/* Record & Stats */}
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
-                  <div className="text-xs font-bold text-[#1B365D]">{data.record}</div>
-                  <div className="text-[9px] text-[#5A7A99]">Record</div>
+                <div className="bg-[#EFF5FA] rounded-lg px-2 py-2">
+                  <div className="text-sm font-bold text-[#1B365D]">{data.record}</div>
+                  <div className="text-[10px] text-[#5A7A99]">Record</div>
                 </div>
                 {data.streak && (
-                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
-                    <div className={`text-xs font-bold ${data.streak.endsWith("W") ? "text-green-600" : "text-red-600"}`}>
+                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-2">
+                    <div className={`text-sm font-bold ${data.streak.endsWith("W") ? "text-green-600" : "text-red-600"}`}>
                       {data.streak}
                     </div>
-                    <div className="text-[9px] text-[#5A7A99]">Streak</div>
+                    <div className="text-[10px] text-[#5A7A99]">Streak</div>
                   </div>
                 )}
                 {data.ppg && data.oppg && (
-                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-1.5">
-                    <div className="text-xs font-bold text-[#1B365D]">{data.ppg}/{data.oppg}</div>
-                    <div className="text-[9px] text-[#5A7A99]">PPG/Opp</div>
+                  <div className="bg-[#EFF5FA] rounded-lg px-2 py-2">
+                    <div className="text-sm font-bold text-[#1B365D]">{data.ppg}/{data.oppg}</div>
+                    <div className="text-[10px] text-[#5A7A99]">PPG/Opp</div>
                   </div>
                 )}
               </div>
 
               {/* Home/Away */}
               {(data.homeRecord || data.awayRecord) && (
-                <div className="flex gap-3 text-[10px] text-[#5A7A99]">
+                <div className="flex gap-3 text-xs text-[#5A7A99]">
                   {data.homeRecord && <span>Home: <span className="font-semibold text-[#1B365D]">{data.homeRecord}</span></span>}
                   {data.awayRecord && <span>Away: <span className="font-semibold text-[#1B365D]">{data.awayRecord}</span></span>}
                 </div>
@@ -488,17 +488,17 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
 
               {/* KenPom badges */}
               {data.kenpomRank && (
-                <div className="flex gap-2 text-[10px]">
-                  <span className="bg-[#1B365D] text-white rounded-full px-2 py-0.5 font-bold">
+                <div className="flex gap-2 text-xs">
+                  <span className="bg-[#1B365D] text-white rounded-full px-2.5 py-0.5 font-bold">
                     KenPom #{data.kenpomRank}
                   </span>
                   {data.kenpomAdjO && (
-                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2 py-0.5 font-semibold">
+                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2.5 py-0.5 font-semibold">
                       Off #{data.kenpomAdjORank}
                     </span>
                   )}
                   {data.kenpomAdjD && (
-                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2 py-0.5 font-semibold">
+                    <span className="bg-[#EFF5FA] text-[#1B365D] rounded-full px-2.5 py-0.5 font-semibold">
                       Def #{data.kenpomAdjDRank}
                     </span>
                   )}
@@ -508,14 +508,14 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Last 10 Games */}
               {data.last10.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-[#5A7A99] uppercase tracking-wider mb-1.5">
                     Last {data.last10.length} Games
                   </div>
                   <div className="flex gap-0.5">
                     {data.last10.map((g, i) => (
                       <div
                         key={i}
-                        className={`w-full h-5 rounded-sm flex items-center justify-center text-[9px] font-bold ${
+                        className={`w-full h-6 rounded-sm flex items-center justify-center text-[10px] font-bold ${
                           g.win
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-600"
@@ -532,7 +532,7 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Quad Record */}
               {data.quadRecord && (
                 <div>
-                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-[#5A7A99] uppercase tracking-wider mb-1.5">
                     Quad Record
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
@@ -540,11 +540,11 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
                       const val = data.quadRecord![q];
                       const [w] = val.split("-").map(Number);
                       return (
-                        <div key={q} className="bg-[#EFF5FA] rounded px-1.5 py-1">
-                          <div className={`text-xs font-bold ${w > 0 && i === 0 ? "text-green-600" : "text-[#1B365D]"}`}>
+                        <div key={q} className="bg-[#EFF5FA] rounded px-1.5 py-1.5">
+                          <div className={`text-sm font-bold ${w > 0 && i === 0 ? "text-green-600" : "text-[#1B365D]"}`}>
                             {val}
                           </div>
-                          <div className="text-[8px] text-[#5A7A99] font-semibold">Q{i + 1}</div>
+                          <div className="text-[10px] text-[#5A7A99] font-semibold">Q{i + 1}</div>
                         </div>
                       );
                     })}
@@ -555,20 +555,20 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Notable Wins */}
               {data.notableWins.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1.5">
                     Notable Wins
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {data.notableWins.map((g, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                      <div key={i} className="flex items-center gap-2 text-sm">
                         <span className="text-green-600 font-bold w-4">W</span>
                         {g.opponentLogo && (
-                          <img src={g.opponentLogo} alt="" className="w-3.5 h-3.5 object-contain" />
+                          <img src={g.opponentLogo} alt="" className="w-4 h-4 object-contain" />
                         )}
                         <span className="text-[#1B365D] font-medium truncate flex-1">
                           #{g.opponentRank} {g.opponent}
                         </span>
-                        <span className="text-[#5A7A99] font-mono text-[10px] flex-shrink-0">{g.score}</span>
+                        <span className="text-[#5A7A99] font-mono text-xs flex-shrink-0">{g.score}</span>
                       </div>
                     ))}
                   </div>
@@ -578,20 +578,20 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Notable Losses */}
               {data.notableLosses.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1.5">
                     Notable Losses
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {data.notableLosses.map((g, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                      <div key={i} className="flex items-center gap-2 text-sm">
                         <span className="text-red-500 font-bold w-4">L</span>
                         {g.opponentLogo && (
-                          <img src={g.opponentLogo} alt="" className="w-3.5 h-3.5 object-contain" />
+                          <img src={g.opponentLogo} alt="" className="w-4 h-4 object-contain" />
                         )}
                         <span className="text-[#1B365D] font-medium truncate flex-1">
                           #{g.opponentRank} {g.opponent}
                         </span>
-                        <span className="text-[#5A7A99] font-mono text-[10px] flex-shrink-0">{g.score}</span>
+                        <span className="text-[#5A7A99] font-mono text-xs flex-shrink-0">{g.score}</span>
                       </div>
                     ))}
                   </div>
@@ -601,15 +601,15 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Key Players */}
               {data.keyPlayers.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-bold text-[#5A7A99] uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-[#5A7A99] uppercase tracking-wider mb-1.5">
                     Key Players
                   </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                     {data.keyPlayers.slice(0, 6).map((p, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
-                        <span className="text-[#5A7A99] font-mono w-4 text-right">#{p.jersey}</span>
+                      <div key={i} className="flex items-center gap-1.5 text-sm">
+                        <span className="text-[#5A7A99] font-mono w-5 text-right text-xs">#{p.jersey}</span>
                         <span className="text-[#1B365D] font-medium truncate">{p.name}</span>
-                        <span className="text-[#5A7A99] text-[9px] ml-auto flex-shrink-0">{p.position}</span>
+                        <span className="text-[#5A7A99] text-[10px] ml-auto flex-shrink-0">{p.position}</span>
                       </div>
                     ))}
                   </div>
@@ -619,17 +619,17 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
               {/* Injuries */}
               {data.injuries.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">
+                  <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1.5">
                     Injuries
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {data.injuries.map((inj, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                      <div key={i} className="flex items-center gap-2 text-sm">
                         <span className="text-[#1B365D] font-medium truncate flex-1">
                           {inj.player}
                         </span>
-                        <span className="text-[#5A7A99] text-[9px] flex-shrink-0">{inj.position} &middot; {inj.injury}</span>
-                        <span className={`text-[9px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0 ${
+                        <span className="text-[#5A7A99] text-[10px] flex-shrink-0">{inj.position} &middot; {inj.injury}</span>
+                        <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 flex-shrink-0 ${
                           inj.status === "Game Time Decision"
                             ? "bg-amber-100 text-amber-700"
                             : "bg-red-100 text-red-600"
@@ -645,7 +645,7 @@ function TeamDetailsSection({ team }: { team: TeamData }) {
           )}
 
           {!loading && !data && (
-            <p className="text-xs text-[#5A7A99] italic">Team details unavailable</p>
+            <p className="text-sm text-[#5A7A99] italic">Team details unavailable</p>
           )}
         </div>
       )}
@@ -712,7 +712,6 @@ export function InfoModal({
 }) {
   const hasBoxScore = gameInfo?.espnEventId && (result?.status === "in_progress" || result?.status === "final");
   const [activeTab, setActiveTab] = useState<"matchup" | "odds" | "kenpom" | "buzz">("matchup");
-  const [showBoxScore, setShowBoxScore] = useState(false);
   const [records, setRecords] = useState<{ team1?: string; team2?: string }>({});
 
   useEffect(() => {
@@ -745,12 +744,12 @@ export function InfoModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden max-h-[90vh] flex flex-col"
+        className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-[#1B365D] px-5 py-4 flex items-center justify-between">
           <div>
-            <div className="text-sm font-bold text-[#F4793B] uppercase tracking-wider">
+            <div className="text-base font-bold text-[#F4793B] uppercase tracking-wider">
               {gameInfo ? ROUND_LABELS[gameInfo.round] || `Round ${gameInfo.round}` : "Matchup"}
             </div>
             <div className="text-sm text-white/60 mt-0.5">
@@ -821,21 +820,21 @@ export function InfoModal({
                   return (
                     <div
                       key={team?.id ?? i}
-                      className={`flex items-center gap-3 p-3 rounded-xl ${
+                      className={`flex items-center gap-3 p-3.5 rounded-xl ${
                         isWinner ? "bg-green-50 ring-1 ring-green-200" : "bg-[#EFF5FA]"
                       }`}
                     >
                       {team?.logoUrl && (
-                        <img src={team.logoUrl} alt="" className="w-10 h-10 object-contain" />
+                        <img src={team.logoUrl} alt="" className="w-12 h-12 object-contain" />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#5A7A99]">{team?.seed}</span>
-                          <span className={`text-base font-semibold truncate ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
+                          <span className="text-base font-bold text-[#5A7A99]">{team?.seed}</span>
+                          <span className={`text-lg font-semibold truncate ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
                             {team ? schoolName(team.name) : "TBD"}
                           </span>
                           {teamSimPct !== undefined && (
-                            <span className={`text-[11px] font-bold tabular-nums ${
+                            <span className={`text-xs font-bold tabular-nums ${
                               teamSimPct >= 50 ? "text-[#1B365D]/40" : "text-[#F4793B]/50"
                             }`}>
                               {teamSimPct}%
@@ -845,12 +844,12 @@ export function InfoModal({
                       </div>
                       <div className="flex flex-col items-end flex-shrink-0">
                         {score !== null && score !== undefined && (
-                          <span className={`text-2xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
+                          <span className={`text-3xl font-bold font-mono tabular-nums ${isWinner ? "text-green-700" : "text-[#1B365D]"}`}>
                             {score}
                           </span>
                         )}
                         {record && (
-                          <span className="text-[11px] text-[#5A7A99]">{record}</span>
+                          <span className="text-xs text-[#5A7A99]">{record}</span>
                         )}
                       </div>
                     </div>
@@ -864,11 +863,11 @@ export function InfoModal({
                 const pct2 = 100 - pct1;
                 return (
                   <div className="mt-3 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#5A7A99]">
+                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#5A7A99]">
                       <span>Simulation Win Probability</span>
                       <span className="font-normal normal-case tracking-normal text-[#5A7A99]/60">10k sims</span>
                     </div>
-                    <div className="flex h-2 rounded-full overflow-hidden">
+                    <div className="flex h-2.5 rounded-full overflow-hidden">
                       <div
                         className="bg-[#1B365D] transition-all duration-300"
                         style={{ width: `${pct1}%` }}
@@ -878,7 +877,7 @@ export function InfoModal({
                         style={{ width: `${pct2}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-xs font-bold">
+                    <div className="flex justify-between text-sm font-bold">
                       <span className="text-[#1B365D]">{schoolName(team1.name)} {pct1}%</span>
                       <span className="text-[#F4793B]">{pct2}% {schoolName(team2.name)}</span>
                     </div>
@@ -892,45 +891,28 @@ export function InfoModal({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
                   </span>
-                  <span className="text-sm font-bold text-green-600 uppercase">Live</span>
+                  <span className="text-base font-bold text-green-600 uppercase">Live</span>
                   {result.statusDetail && (
-                    <span className="text-sm font-semibold text-[#5A7A99]">&middot; {result.statusDetail}</span>
+                    <span className="text-base font-semibold text-[#5A7A99]">&middot; {result.statusDetail}</span>
                   )}
                 </div>
               )}
               {result?.status === "final" && (
-                <div className="mt-4 text-center text-sm font-bold text-[#5A7A99] uppercase">Final</div>
+                <div className="mt-4 text-center text-base font-bold text-[#5A7A99] uppercase">Final</div>
               )}
 
-              {/* Box Score (expandable) */}
+              {/* Box Score */}
               {hasBoxScore && (
-                <div className="mt-4 border-t border-[#BFD4E4]/50">
-                  <button
-                    onClick={() => setShowBoxScore(!showBoxScore)}
-                    className="flex items-center justify-center gap-1.5 w-full py-2.5 text-xs font-semibold text-[#5A7A99] hover:text-[#1B365D] transition-colors"
-                    type="button"
-                  >
-                    <svg
-                      className={`w-3 h-3 transition-transform ${showBoxScore ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    Box Score
-                  </button>
-                  {showBoxScore && (
-                    <GameStatsPanel espnEventId={gameInfo!.espnEventId!} status={result!.status} />
-                  )}
+                <div className="mt-4 pt-4 border-t border-[#BFD4E4]/50">
+                  <GameStatsPanel espnEventId={gameInfo!.espnEventId!} status={result!.status} />
                 </div>
               )}
 
               {(gameInfo?.startTime || gameInfo?.venue || gameInfo?.broadcast) && (
                 <div className="mt-4 pt-4 border-t border-[#BFD4E4]/50 space-y-2.5">
                   {startDate && (
-                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <div className="flex items-center gap-2.5 text-base text-[#5A7A99]">
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                       {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
@@ -939,8 +921,8 @@ export function InfoModal({
                     </div>
                   )}
                   {gameInfo?.venue && (
-                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <div className="flex items-center gap-2.5 text-base text-[#5A7A99]">
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                       </svg>
@@ -948,8 +930,8 @@ export function InfoModal({
                     </div>
                   )}
                   {gameInfo?.broadcast && (
-                    <div className="flex items-center gap-2.5 text-sm text-[#5A7A99]">
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <div className="flex items-center gap-2.5 text-base text-[#5A7A99]">
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
                       </svg>
                       {gameInfo.broadcast}
