@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,6 @@ import {
 } from "@/components/ui/card";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -38,8 +36,7 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Invalid email or password.");
       } else {
-        router.push("/bracket");
-        router.refresh();
+        window.location.href = "/bracket";
       }
     } catch {
       setError("Something went wrong. Please try again.");
