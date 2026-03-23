@@ -68,7 +68,7 @@ const ROUND_LABELS: Record<number, string> = {
   6: "Championship",
 };
 
-function PickIcon({
+export function PickIcon({
   team,
   pickedTeamId,
   result,
