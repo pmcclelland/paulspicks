@@ -108,7 +108,7 @@ function FinalFourGame({
         className={`relative flex items-center justify-between w-full px-3 py-2.5 text-sm transition-colors rounded-sm ${
           disabled ? "cursor-default" : "cursor-pointer hover:bg-accent"
         } ${pickedTeamId === teamId ? "font-bold" : "font-medium"} ${
-          isEliminated ? "text-[#5A7A99]/50 line-through" : ""
+          isEliminated || isBusted ? "text-[#5A7A99]/50 line-through" : ""
         }`}
         onClick={() => teamId && team && onPick(game.id, teamId)}
         disabled={disabled && pickedTeamId !== teamId}

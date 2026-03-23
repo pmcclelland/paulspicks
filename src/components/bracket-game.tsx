@@ -1022,7 +1022,7 @@ function TeamRow({
       className={`relative flex items-center w-full px-3 py-2.5 h-10 text-sm transition-colors ${
         disabled ? "cursor-default" : "cursor-pointer hover:bg-[#EFF5FA]"
       } ${isPicked ? "font-bold" : "font-medium"} ${
-        isEliminated ? "text-[#5A7A99]/50 line-through" : "text-[#1B365D]"
+        isEliminated || isBusted ? "text-[#5A7A99]/50 line-through" : "text-[#1B365D]"
       } ${isWinner ? "text-green-700" : ""}`}
       onClick={onClick}
       disabled={disabled && !isPicked}
