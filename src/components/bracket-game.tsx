@@ -1145,7 +1145,7 @@ export default function BracketGame({
                   score={result?.team1Score ?? null}
                   isPicked={pickedTeamId === team1?.id}
                   isWinner={result?.winnerTeamId === team1?.id}
-                  isEliminated={(!!result?.winnerTeamId && result.winnerTeamId !== team1?.id) || !!team1Eliminated}
+                  isEliminated={!!result?.winnerTeamId && result.winnerTeamId !== team1?.id}
                   onClick={() => team1 && onPick(gameId, team1.id)}
                   disabled={disabled}
                   pickedTeamId={pickedTeamId}
@@ -1166,7 +1166,7 @@ export default function BracketGame({
                   score={result?.team2Score ?? null}
                   isPicked={pickedTeamId === team2?.id}
                   isWinner={result?.winnerTeamId === team2?.id}
-                  isEliminated={(!!result?.winnerTeamId && result.winnerTeamId !== team2?.id) || !!team2Eliminated}
+                  isEliminated={!!result?.winnerTeamId && result.winnerTeamId !== team2?.id}
                   onClick={() => team2 && onPick(gameId, team2.id)}
                   disabled={disabled}
                   pickedTeamId={pickedTeamId}

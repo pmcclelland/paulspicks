@@ -98,7 +98,8 @@ function FinalFourGame({
   const simPctBottom = showSim ? (simPctTop !== undefined ? 100 - simPctTop : undefined) : undefined;
 
   function renderTeam(team: TeamData | null, score: number | null, teamId: number | null, slot: "team1" | "team2", slotSimPct?: number) {
-    const isEliminated = teamId ? eliminatedTeamIds?.has(teamId) : false;
+    // Only show eliminated (line-through) if this specific game is final and team lost
+    const isEliminated = result?.status === "final" && result?.winnerTeamId !== null && teamId !== null && result.winnerTeamId !== teamId;
     const isSlotBusted = bustedPickSlot === slot;
     return (
       <button
