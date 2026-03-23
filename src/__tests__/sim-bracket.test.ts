@@ -18,43 +18,119 @@ function makeGame(
 }
 
 describe("generateSimBracket", () => {
-  it("always picks the higher-probability team (deterministic)", () => {
-    // Two R1 games in a region: 1v16 and 8v9
+  it("picks the favorite in large mismatches (1v16)", () => {
     const teams: SimTeam[] = [
       makeTeam(1, "Duke", 1, "East"),
       makeTeam(2, "LowSeed16", 16, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+
+    const games: SimGame[] = [
+      makeGame(100, 1, "East", 0, 1, 2),
+    ];
+
+    // KenPom: Duke much stronger — no upset threshold for 1v16
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("duke", 30);
+    kenpomMap.set("lowseed16", -10);
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 100);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(1); // Duke (1-seed favorite)
+  });
+
+  it("picks the 8-seed when it has higher KenPom in 8v9 matchup", () => {
+    const teams: SimTeam[] = [
       makeTeam(3, "MidTeam8", 8, "East"),
       makeTeam(4, "MidTeam9", 9, "East"),
     ];
     const teamsById = new Map(teams.map((t) => [t.id, t]));
 
     const games: SimGame[] = [
-      makeGame(100, 1, "East", 0, 1, 2),  // 1-seed vs 16-seed
-      makeGame(101, 1, "East", 1, 3, 4),  // 8-seed vs 9-seed
-      makeGame(102, 2, "East", 0, null, null), // R2 game
+      makeGame(101, 1, "East", 1, 3, 4),
     ];
 
-    // KenPom: Duke much stronger
+    // 8-seed has slightly higher KenPom
     const kenpomMap = new Map<string, number>();
-    kenpomMap.set("duke", 30);
-    kenpomMap.set("lowseed16", -10);
     kenpomMap.set("midteam8", 10);
     kenpomMap.set("midteam9", 8);
 
     const result = generateSimBracket(games, teamsById, kenpomMap);
 
-    // Should pick Duke (1-seed, much higher adjEM)
-    const dukePick = result.picks.find((p) => p.gameId === 100);
-    expect(dukePick).toBeDefined();
-    expect(dukePick!.pickedTeamId).toBe(1); // Duke
+    const pick = result.picks.find((p) => p.gameId === 101);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(3); // MidTeam8 (higher KenPom)
+  });
 
-    // Should pick MidTeam8 (slightly higher adjEM)
-    const midPick = result.picks.find((p) => p.gameId === 101);
-    expect(midPick).toBeDefined();
-    expect(midPick!.pickedTeamId).toBe(3); // MidTeam8
+  it("picks the 9-seed (underdog) when it has higher KenPom in 8v9 matchup", () => {
+    const teams: SimTeam[] = [
+      makeTeam(3, "WeakEight", 8, "East"),
+      makeTeam(4, "StrongNine", 9, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
 
-    // Should have 3 picks total (2 R1 + 1 R2)
-    expect(result.picks).toHaveLength(3);
+    const games: SimGame[] = [
+      makeGame(101, 1, "East", 1, 3, 4),
+    ];
+
+    // 9-seed actually has higher KenPom
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("weakeight", 6);
+    kenpomMap.set("strongnine", 12);
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 101);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(4); // StrongNine (9-seed with better KenPom)
+  });
+
+  it("picks the 12-seed when probability is close in 5v12 matchup", () => {
+    const teams: SimTeam[] = [
+      makeTeam(5, "FiveSeed", 5, "South"),
+      makeTeam(6, "TwelveSeed", 12, "South"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+
+    const games: SimGame[] = [
+      makeGame(200, 1, "South", 4, 5, 6),
+    ];
+
+    // Nearly equal KenPom — blended prob (kenpom ~0.5 + historical ~0.64) ≈ 0.54 < 0.57
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("fiveseed", 12);
+    kenpomMap.set("twelveseed", 12);
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 200);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(6); // TwelveSeed upset
+  });
+
+  it("picks the 5-seed when probability is well above threshold in 5v12", () => {
+    const teams: SimTeam[] = [
+      makeTeam(5, "StrongFive", 5, "South"),
+      makeTeam(6, "WeakTwelve", 12, "South"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+
+    const games: SimGame[] = [
+      makeGame(200, 1, "South", 4, 5, 6),
+    ];
+
+    // Large KenPom gap — favorite prob will be well above 0.57
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("strongfive", 22);
+    kenpomMap.set("weaktwelve", 2);
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 200);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(5); // StrongFive (too big a gap for upset)
   });
 
   it("produces confidence values between 0.5 and 1.0", () => {
@@ -150,5 +226,54 @@ describe("generateSimBracket", () => {
 
     expect(r1.picks).toEqual(r2.picks);
     expect(r1.confidences).toEqual(r2.confidences);
+  });
+
+  it("picks underdog in R2+ when KenPom gap is small (underseeded bonus)", () => {
+    // Simulate an R2 game where the "underdog" has nearly equal KenPom
+    const teams: SimTeam[] = [
+      makeTeam(10, "HighSeed", 2, "East"),
+      makeTeam(11, "LowSeed", 7, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+
+    const games: SimGame[] = [
+      makeGame(400, 2, "East", 0, 10, 11),
+    ];
+
+    // Equal KenPom → kenpomProb = 0.5, historical 2v7 R2 ≈ 0.667
+    // Blended ≈ 0.7*0.5 + 0.3*0.667 = 0.55 < threshold 0.56 (underseeded bonus)
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("highseed", 18);
+    kenpomMap.set("lowseed", 18); // Equal KenPom → underseeded bonus triggers
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 400);
+    expect(pick).toBeDefined();
+    // With such close KenPom, the underseeded bonus + threshold should favor the underdog
+    expect(pick!.pickedTeamId).toBe(11); // LowSeed (7-seed upset)
+  });
+
+  it("picks favorite in R2+ when probability is clearly above threshold", () => {
+    const teams: SimTeam[] = [
+      makeTeam(10, "DomFavorite", 1, "East"),
+      makeTeam(11, "WeakDog", 8, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+
+    const games: SimGame[] = [
+      makeGame(400, 2, "East", 0, 10, 11),
+    ];
+
+    // Large KenPom gap — well above any threshold
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("domfavorite", 28);
+    kenpomMap.set("weakdog", 5);
+
+    const result = generateSimBracket(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 400);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(10); // DomFavorite
   });
 });

@@ -89,7 +89,7 @@ export function buildKenPomMap(
  * Look up KenPom adjEM for a team. Tries schoolName mapping first,
  * then falls back to substring matching.
  */
-function lookupAdjEM(
+export function lookupAdjEM(
   teamName: string,
   kenpomMap: Map<string, number>
 ): number | null {
