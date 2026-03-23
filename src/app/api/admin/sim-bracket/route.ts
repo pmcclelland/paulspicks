@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { games, teams, picks, users, kenpomRankings, appState } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { buildKenPomMap, type SimGame, type SimTeam } from "@/lib/simulation";
-import { generateSimBracket } from "@/lib/sim-bracket";
+import { generateSimBracket, type GameOddsEntry, type KenPomDetails } from "@/lib/sim-bracket";
 import { POINTS_PER_ROUND } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
@@ -120,8 +120,38 @@ export async function POST() {
     const teamsById = new Map(simTeams.map((t) => [t.id, t]));
     const kenpomMap = buildKenPomMap(allKenpom);
 
+    // Build game odds map from stored moneyline data
+    const gameOdds = new Map<number, GameOddsEntry>();
+    for (const g of allGames) {
+      if (g.moneylineTeam1 && g.moneylineTeam2) {
+        gameOdds.set(g.id, {
+          moneylineTeam1: g.moneylineTeam1,
+          moneylineTeam2: g.moneylineTeam2,
+        });
+      }
+    }
+
+    // Build luck map from KenPom data
+    const luckMap = new Map<string, number>();
+    for (const k of allKenpom) {
+      if (k.luck !== null) {
+        luckMap.set(k.teamName.toLowerCase(), parseFloat(k.luck));
+      }
+    }
+
+    // Build KenPom details map (adjO/adjD) for matchup edge
+    const kenpomDetails = new Map<string, KenPomDetails>();
+    for (const k of allKenpom) {
+      if (k.adjO !== null && k.adjD !== null) {
+        kenpomDetails.set(k.teamName.toLowerCase(), {
+          adjO: parseFloat(k.adjO),
+          adjD: parseFloat(k.adjD),
+        });
+      }
+    }
+
     // Generate deterministic bracket
-    const result = generateSimBracket(simGames, teamsById, kenpomMap);
+    const result = generateSimBracket(simGames, teamsById, kenpomMap, undefined, gameOdds, luckMap, kenpomDetails);
 
     // Delete existing picks for sim user and insert new ones
     await db.delete(picks).where(eq(picks.userId, simUserId));

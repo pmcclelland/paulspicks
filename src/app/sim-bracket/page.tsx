@@ -147,7 +147,7 @@ export default function SimBracketPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#1B365D]">{data.name}</h1>
           <p className="text-sm text-[#5A7A99]">
-            Always picks the team with the higher simulation probability
+            Monte Carlo simulation &mdash; 10,000 tournament runs, pick the convergent winner
           </p>
         </div>
       </div>
@@ -421,6 +421,136 @@ export default function SimBracketPage() {
           </div>
         </section>
       )}
+
+      {/* How It Works */}
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer text-lg font-semibold text-[#1B365D] list-none">
+            <svg
+              className="w-4 h-4 text-[#5A7A99] transition-transform group-open:rotate-90"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+            How It Works
+          </summary>
+          <div className="mt-4 space-y-4">
+            <Card className="border-[#F4793B]/30">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Monte Carlo Simulation</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  The sim bracket runs <span className="text-[#1B365D] font-medium">10,000 full tournament
+                  simulations</span>. In each simulation, every game&apos;s outcome is randomly sampled based
+                  on the enhanced win probability. After all simulations, each game&apos;s pick is the team
+                  that won that game most often. The confidence percentage is the fraction of simulations
+                  that team won.
+                </p>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  This captures <span className="text-[#1B365D] font-medium">cascading path effects</span> that
+                  single-pass approaches miss. A weaker team on an easier bracket path may be a better later-round
+                  pick than a stronger team in a brutal region, because the Monte Carlo naturally accounts for who
+                  they&apos;re likely to face.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Base Win Probability</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  Each game&apos;s win probability starts as a 70/30 blend of two signals:
+                </p>
+                <ul className="text-sm text-[#5A7A99] leading-relaxed space-y-1 list-disc pl-5">
+                  <li>
+                    <span className="text-[#1B365D] font-medium">KenPom efficiency margin (70%)</span> &mdash;
+                    converts the adjEM difference between teams into a probability using a logistic function
+                  </li>
+                  <li>
+                    <span className="text-[#1B365D] font-medium">Historical seed-matchup rates (30%)</span> &mdash;
+                    e.g. 12-seeds beat 5-seeds ~36% of the time, 9-seeds beat 8-seeds ~49%
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Vegas Odds Blending</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  When ESPN moneyline odds are available (typically R1 games), they&apos;re blended 50/50 with
+                  the base probability. Vegas lines aggregate injury info, matchup-specific factors, and sharp
+                  money that pure efficiency metrics miss. Moneylines are converted to fair (vig-free)
+                  probabilities before blending.
+                </p>
+                <div className="bg-[#0F1E33]/5 rounded px-3 py-2">
+                  <code className="text-xs text-[#1B365D] font-mono">
+                    enhancedProb = 0.5 &times; modelProb + 0.5 &times; vegasProb
+                  </code>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Luck Regression</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  KenPom&apos;s luck metric measures how much a team&apos;s wins have exceeded what their
+                  efficiency stats predict. High-luck teams have been winning close games at an unsustainable
+                  rate and are more likely to regress in single-elimination play. The win probability is
+                  adjusted directly:
+                </p>
+                <ul className="text-sm text-[#5A7A99] leading-relaxed space-y-1 list-disc pl-5">
+                  <li>If a team is significantly luckier (luck diff &gt; 0.04), their win probability is reduced by 2%</li>
+                  <li>If their opponent is luckier, win probability increases by 2% (opponent regresses)</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Stylistic Matchup Edge</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  Not all efficiency margins are equal. A team with elite offense facing poor defense has a
+                  larger edge than adjEM alone suggests. The model computes a matchup edge from KenPom&apos;s
+                  adjusted offensive and defensive efficiency splits:
+                </p>
+                <div className="bg-[#0F1E33]/5 rounded px-3 py-2">
+                  <code className="text-xs text-[#1B365D] font-mono">
+                    edge = (teamB.adjO &minus; teamA.adjD) &minus; (teamA.adjO &minus; teamB.adjD)
+                  </code>
+                </div>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  When the stylistic edge exceeds 4 points, the disadvantaged team&apos;s win probability
+                  is reduced by up to 2%. This naturally feeds into the Monte Carlo &mdash; the team with
+                  the stylistic advantage wins more simulations.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#1B365D]/20">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Convergence</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  With 10,000 simulations, the picks converge to stable outcomes. Each simulation randomly
+                  samples game results and propagates winners through the bracket, so later-round picks
+                  naturally account for all possible paths &mdash; not just the most likely one. The confidence
+                  percentages show how decisively the simulation converged on each pick.
+                </p>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  Lower confidence in later rounds is expected: more teams can reach those games across
+                  simulations, spreading the win share. A 40% confidence in the Elite Eight means
+                  that team won that specific game in 4,000 out of 10,000 tournament runs.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </details>
+      </section>
     </div>
   );
 }
