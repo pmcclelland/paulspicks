@@ -6,6 +6,7 @@ import {
   type SimGame,
 } from "@/lib/simulation";
 import { fairProbabilities } from "@/lib/odds";
+import { R64_SEED_HISTORY } from "@/lib/seed-matchup-history";
 
 export type SimBracketPick = {
   gameId: number;
@@ -28,6 +29,11 @@ export type KenPomDetails = {
 };
 
 const DEFAULT_SIM_COUNT = 10000;
+
+// R1 upset budget constants
+export const MIN_UPSET_PROB = 0.15;
+export const MIN_R1_UPSETS = 5;
+export const MAX_R1_UPSETS = 10;
 
 /**
  * Simple seedable PRNG (mulberry32). Used for deterministic testing.
@@ -147,41 +153,73 @@ function advanceWinner(
   }
 }
 
+type R1UpsetCandidate = {
+  gameId: number;
+  favorite: SimTeam;
+  underdog: SimTeam;
+  underdogProb: number;
+};
+
 /**
- * Determine whether to pick the underdog based on seed-matchup thresholds.
+ * Get the historical upset rate for a seed matchup (underdog win %).
+ * Used as tiebreaker when two games have equal underdog probability.
+ */
+function getHistoricalUpsetRate(seed1: number, seed2: number): number {
+  const higher = Math.min(seed1, seed2);
+  const lower = Math.max(seed1, seed2);
+  const key = `${higher}-${lower}`;
+  const record = R64_SEED_HISTORY[key];
+  if (!record) return 0;
+  return record.losses / (record.wins + record.losses);
+}
+
+/**
+ * Select which R1 games should be upsets using a budget-based approach.
  *
- * Monte Carlo gives us accurate probabilities that account for path effects,
- * but always picking the favorite produces a chalky bracket. These thresholds
- * inject upsets at historically justified rates — picking the underdog when
- * the favorite's win frequency is close enough to the historical upset rate.
+ * Instead of deciding each game independently, this computes how many upsets
+ * to expect (based on MC probabilities), then picks the N most likely ones.
+ * This produces a historically consistent upset count (5-10) with the best
+ * allocation across the field.
+ *
+ * 8v9 games are excluded (toss-ups, not counted as upsets).
+ * Games where the underdog has < MIN_UPSET_PROB are excluded (1v16, 2v15).
+ */
+export function selectR1Upsets(candidates: R1UpsetCandidate[]): Set<number> {
+  // Filter out games below the probability floor
+  const eligible = candidates.filter((c) => c.underdogProb >= MIN_UPSET_PROB);
+
+  // Compute budget: sum of underdog probabilities, clamped to [5, 10]
+  const rawBudget = eligible.reduce((sum, c) => sum + c.underdogProb, 0);
+  const budget = Math.min(MAX_R1_UPSETS, Math.max(MIN_R1_UPSETS, Math.round(rawBudget)));
+
+  // Sort by underdogProb descending, tiebreak by historical upset rate
+  eligible.sort((a, b) => {
+    const probDiff = b.underdogProb - a.underdogProb;
+    if (Math.abs(probDiff) > 0.001) return probDiff;
+    const aRate = getHistoricalUpsetRate(a.favorite.seed, a.underdog.seed);
+    const bRate = getHistoricalUpsetRate(b.favorite.seed, b.underdog.seed);
+    return bRate - aRate;
+  });
+
+  // Pick the top N
+  const upsetGameIds = new Set<number>();
+  for (let i = 0; i < Math.min(budget, eligible.length); i++) {
+    upsetGameIds.add(eligible[i].gameId);
+  }
+  return upsetGameIds;
+}
+
+/**
+ * Determine whether to pick the underdog in R2+ games.
+ *
+ * R1 upsets are handled by selectR1Upsets() instead.
  */
 function shouldPickUpset(
   favorite: SimTeam,
   underdog: SimTeam,
   favProb: number, // P(favorite wins), always >= 0.5
-  round: number,
   kenpomMap: Map<string, number>
 ): boolean {
-  // R1: use seed-matchup-specific thresholds tuned to historical upset rates
-  if (round === 1) {
-    const matchup = `${Math.min(favorite.seed, underdog.seed)}-${Math.max(favorite.seed, underdog.seed)}`;
-
-    // 8v9: pure toss-up, just trust the simulation
-    if (matchup === "8-9") return favProb < 0.5;
-
-    // 5v12: historically ~36% upset rate
-    if (matchup === "5-12") return favProb < 0.57;
-
-    // 6v11, 7v10: historically ~33% upset rate
-    if (matchup === "6-11" || matchup === "7-10") return favProb < 0.55;
-
-    // 4v13: historically ~21% upset rate
-    if (matchup === "4-13") return favProb < 0.52;
-
-    // All other R1 (1v16, 2v15, 3v14): only pick upset if sim says underdog is actually better
-    return favProb < 0.5;
-  }
-
   // R2+: pick underdog when it's genuinely close
   let threshold = 0.53;
 
@@ -280,7 +318,7 @@ export function generateSimBracket(
     }
   }
 
-  // --- Phase 2: Pick winners with upset thresholds ---
+  // --- Phase 2: Pick winners with upset budget (R1) and thresholds (R2+) ---
   // Process round by round, propagating picks forward so later-round
   // upset decisions use the teams we actually picked in earlier rounds.
   const pickSlots = new Map<
@@ -293,6 +331,33 @@ export function generateSimBracket(
 
   const picks: SimBracketPick[] = [];
   const confidences: Record<number, number> = {};
+
+  // Pre-compute R1 upset budget before the round loop
+  const r1Games = gamesByRound.get(1) || [];
+  const r1UpsetCandidates: R1UpsetCandidate[] = [];
+  for (const game of r1Games) {
+    const slots = pickSlots.get(game.id)!;
+    const t1 = slots.team1Id ? teamsById.get(slots.team1Id) : null;
+    const t2 = slots.team2Id ? teamsById.get(slots.team2Id) : null;
+    if (!t1 || !t2) continue;
+
+    const matchup = `${Math.min(t1.seed, t2.seed)}-${Math.max(t1.seed, t2.seed)}`;
+    if (matchup === "8-9") continue; // Toss-ups excluded from budget
+
+    const gameCounts = winCounts.get(game.id)!;
+    const t1Wins = gameCounts.get(t1.id) || 0;
+    const t2Wins = gameCounts.get(t2.id) || 0;
+    const totalWins = t1Wins + t2Wins;
+
+    // Identify favorite (lower seed number) and underdog
+    const favorite = t1.seed < t2.seed ? t1 : t2.seed < t1.seed ? t2 : (t1Wins >= t2Wins ? t1 : t2);
+    const underdog = favorite.id === t1.id ? t2 : t1;
+    const underdogWins = underdog.id === t1.id ? t1Wins : t2Wins;
+    const underdogProb = totalWins > 0 ? underdogWins / totalWins : 0.5;
+
+    r1UpsetCandidates.push({ gameId: game.id, favorite, underdog, underdogProb });
+  }
+  const r1UpsetSet = selectR1Upsets(r1UpsetCandidates);
 
   for (let round = 1; round <= 6; round++) {
     const roundGames = gamesByRound.get(round)!;
@@ -320,9 +385,19 @@ export function generateSimBracket(
         const seedFavWins = seedFav.id === t1.id ? t1Wins : t2Wins;
         const seedFavProb = totalWins > 0 ? seedFavWins / totalWins : 0.5;
 
-        const pickUpset = shouldPickUpset(
-          seedFav, seedDog, seedFavProb, round, kenpomMap
-        );
+        let pickUpset: boolean;
+        if (round === 1) {
+          const matchup = `${Math.min(t1.seed, t2.seed)}-${Math.max(t1.seed, t2.seed)}`;
+          if (matchup === "8-9") {
+            // 8v9: toss-up, just pick whichever team MC favors
+            pickUpset = seedFavProb < 0.5;
+          } else {
+            // Use the pre-computed upset budget
+            pickUpset = r1UpsetSet.has(game.id);
+          }
+        } else {
+          pickUpset = shouldPickUpset(seedFav, seedDog, seedFavProb, kenpomMap);
+        }
         winnerId = pickUpset ? seedDog.id : seedFav.id;
 
         // Confidence = the picked team's actual MC win frequency for this game

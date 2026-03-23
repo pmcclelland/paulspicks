@@ -442,7 +442,7 @@ export default function SimBracketPage() {
           <div className="mt-4 space-y-4">
             <Card className="border-[#F4793B]/30">
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-[#1B365D]">Monte Carlo + Upset Thresholds</h3>
+                <h3 className="text-sm font-semibold text-[#1B365D]">Monte Carlo + Upset Budget</h3>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
                   The sim bracket is a two-phase hybrid. <span className="text-[#1B365D] font-medium">Phase
                   1</span> runs <span className="text-[#1B365D] font-medium">10,000 full tournament
@@ -451,11 +451,13 @@ export default function SimBracketPage() {
                   cascading path effects that single-pass approaches miss.
                 </p>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  <span className="text-[#1B365D] font-medium">Phase 2</span> applies seed-matchup-specific
-                  upset thresholds to those Monte Carlo probabilities. Pure Monte Carlo always picks the
-                  favorite (majority winner), producing a chalky bracket. The thresholds inject upsets at
-                  historically justified rates &mdash; when the favorite&apos;s simulation win frequency is
-                  close enough to the historical upset rate for that seed matchup, the underdog gets picked.
+                  <span className="text-[#1B365D] font-medium">Phase 2</span> uses a budget-based upset
+                  strategy for Round 1. Instead of deciding each game independently, it computes how many
+                  total upsets to expect from the Monte Carlo probabilities, then picks
+                  the <span className="text-[#1B365D] font-medium">N most likely upsets</span> across the
+                  entire field. This produces a historically consistent 5&ndash;10 upsets with the best
+                  possible allocation &mdash; a strong 12-seed gets picked over a mediocre 11-seed, and two
+                  strong underdogs in different regions can both be picked.
                 </p>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
                   The confidence percentage shows the picked team&apos;s actual Monte Carlo win frequency.
@@ -540,34 +542,35 @@ export default function SimBracketPage() {
 
             <Card>
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-[#1B365D]">Upset Thresholds (Phase 2)</h3>
+                <h3 className="text-sm font-semibold text-[#1B365D]">R1 Upset Budget (Phase 2)</h3>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  After Monte Carlo produces win frequencies, seed-matchup thresholds decide whether to go
-                  contrarian. If the higher seed&apos;s win frequency falls below the threshold, the lower
-                  seed gets picked as an upset.
+                  After Monte Carlo produces win frequencies, the model selects R1 upsets using a pooled budget
+                  rather than per-game thresholds. The algorithm:
                 </p>
-                <div className="overflow-x-auto">
-                  <table className="text-xs w-full">
-                    <thead>
-                      <tr className="text-left text-[#5A7A99]">
-                        <th className="py-1 pr-4 font-medium">Matchup</th>
-                        <th className="py-1 pr-4 font-medium">Threshold</th>
-                        <th className="py-1 font-medium">Historical Upset %</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-[#1B365D] font-mono">
-                      <tr><td className="py-0.5 pr-4">8 vs 9</td><td className="pr-4">50%</td><td>~49%</td></tr>
-                      <tr><td className="py-0.5 pr-4">5 vs 12</td><td className="pr-4">57%</td><td>~36%</td></tr>
-                      <tr><td className="py-0.5 pr-4">6 vs 11</td><td className="pr-4">55%</td><td>~33%</td></tr>
-                      <tr><td className="py-0.5 pr-4">7 vs 10</td><td className="pr-4">55%</td><td>~33%</td></tr>
-                      <tr><td className="py-0.5 pr-4">4 vs 13</td><td className="pr-4">52%</td><td>~21%</td></tr>
-                      <tr><td className="py-0.5 pr-4">Others</td><td className="pr-4">50%</td><td>&lt;10%</td></tr>
-                    </tbody>
-                  </table>
-                </div>
+                <ol className="text-sm text-[#5A7A99] leading-relaxed space-y-1.5 list-decimal pl-5">
+                  <li>
+                    <span className="text-[#1B365D] font-medium">Exclude 8v9 toss-ups</span> &mdash; these
+                    just pick whichever team won more simulations
+                  </li>
+                  <li>
+                    <span className="text-[#1B365D] font-medium">Apply probability floor (15%)</span> &mdash;
+                    games where the underdog has essentially no chance (1v16, 2v15) are excluded
+                  </li>
+                  <li>
+                    <span className="text-[#1B365D] font-medium">Compute upset budget</span> &mdash; sum of
+                    all eligible underdog MC probabilities, clamped to 5&ndash;10 to match historical norms
+                    (~8 R1 upsets per year)
+                  </li>
+                  <li>
+                    <span className="text-[#1B365D] font-medium">Rank &amp; pick top N</span> &mdash; sort
+                    eligible games by underdog probability descending, tiebreak by historical upset rate.
+                    The top N become upset picks
+                  </li>
+                </ol>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  In R2+, a base threshold of 53% is used, boosted to 56% when the underdog&apos;s KenPom adjEM
-                  is within 3 points of the favorite (underseeded team bonus).
+                  In <span className="text-[#1B365D] font-medium">R2+</span>, a base threshold of 53% is used,
+                  boosted to 56% when the underdog&apos;s KenPom adjEM is within 3 points of the favorite
+                  (underseeded team bonus).
                 </p>
               </CardContent>
             </Card>
@@ -582,7 +585,7 @@ export default function SimBracketPage() {
                 </p>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
                   Confidence below 50% indicates an upset pick &mdash; the team won fewer than half the
-                  simulations but was selected because the threshold logic says the matchup warrants it.
+                  simulations but was selected by the upset budget as one of the most likely upsets.
                   Lower confidence in later rounds is also expected as more teams can reach those games
                   across simulations.
                 </p>
