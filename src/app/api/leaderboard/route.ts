@@ -29,6 +29,7 @@ export async function GET() {
     const championPicks = await db
       .select({
         userId: schema.picks.userId,
+        pickedTeamId: schema.picks.pickedTeamId,
         teamName: schema.teams.name,
         abbreviation: schema.teams.abbreviation,
         seed: schema.teams.seed,
@@ -39,13 +40,14 @@ export async function GET() {
       .innerJoin(schema.teams, eq(schema.picks.pickedTeamId, schema.teams.id))
       .where(eq(schema.games.round, 6));
 
-    const championMap = new Map<number, { teamName: string; abbreviation: string; seed: number; logoUrl: string | null }>();
+    const championMap = new Map<number, { teamName: string; abbreviation: string; seed: number; logoUrl: string | null; pickedTeamId: number }>();
     for (const cp of championPicks) {
       championMap.set(cp.userId, {
         teamName: cp.teamName,
         abbreviation: cp.abbreviation,
         seed: cp.seed,
         logoUrl: cp.logoUrl,
+        pickedTeamId: cp.pickedTeamId,
       });
     }
 
@@ -112,7 +114,17 @@ export async function GET() {
           correctPicks: stats.correctPicks,
           totalPicks: stats.totalPicks,
           roundBreakdown: stats.roundBreakdown,
-          championPick: championMap.get(user.id) || null,
+          championPick: (() => {
+            const cp = championMap.get(user.id);
+            if (!cp) return null;
+            return {
+              teamName: cp.teamName,
+              abbreviation: cp.abbreviation,
+              seed: cp.seed,
+              logoUrl: cp.logoUrl,
+              isEliminated: eliminatedTeamIds.has(cp.pickedTeamId),
+            };
+          })(),
           pointsRemaining: stats.pointsRemaining,
           rank: 0,
         };
