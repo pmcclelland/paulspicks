@@ -469,6 +469,17 @@ export default function BracketView({
 
   const showCountdown = !locked && firstTipoff && firstTipoff.getTime() > Date.now();
 
+  // Current active round: the earliest round with at least one non-final game that has teams
+  const activeRound = useMemo(() => {
+    for (let r = 1; r <= 6; r++) {
+      const roundGames = games.filter((g) => g.round === r);
+      if (roundGames.length > 0 && roundGames.some((g) => g.status !== "final")) {
+        return r;
+      }
+    }
+    return null; // All games complete
+  }, [games]);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header bar */}
@@ -522,25 +533,34 @@ export default function BracketView({
                 {/* Round headers (LTR) */}
                 <div className="flex mb-4">
                   {[
-                    { name: "ROUND 1", dates: "Mar 19 – 20" },
-                    { name: "ROUND 2", dates: "Mar 21 – 22" },
-                    { name: "SWEET 16", dates: "Mar 26 – 27" },
-                    { name: "ELITE 8", dates: "Mar 28 – 29" },
-                  ].map((h, i) => (
-                    <div key={h.name} className="flex items-center">
-                      {i > 0 && <div className="w-8 flex-shrink-0" />}
-                      <div className="w-56 flex-shrink-0">
-                        <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
-                          <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
-                            {h.name}
-                          </div>
-                          <div className="text-[10px] text-white/50 mt-1 leading-none">
-                            {h.dates}
+                    { name: "ROUND 1", dates: "Mar 19 – 20", round: 1 },
+                    { name: "ROUND 2", dates: "Mar 21 – 22", round: 2 },
+                    { name: "SWEET 16", dates: "Mar 26 – 27", round: 3 },
+                    { name: "ELITE 8", dates: "Mar 28 – 29", round: 4 },
+                  ].map((h, i) => {
+                    const isActive = activeRound === h.round;
+                    return (
+                      <div key={h.name} className="flex items-center">
+                        {i > 0 && <div className="w-8 flex-shrink-0" />}
+                        <div className="w-56 flex-shrink-0">
+                          <div className={`rounded-md px-3 py-2 text-center transition-colors ${
+                            isActive
+                              ? "bg-[#F4793B] ring-2 ring-[#F4793B]/30"
+                              : "bg-[#1B365D]"
+                          }`}>
+                            <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
+                              {h.name}
+                            </div>
+                            <div className={`text-[10px] mt-1 leading-none ${
+                              isActive ? "text-white/80" : "text-white/50"
+                            }`}>
+                              {h.dates}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {/* Left regions */}
                 <div className="flex flex-col gap-12">
@@ -573,7 +593,11 @@ export default function BracketView({
               <div className="flex flex-col flex-shrink-0">
                 {/* Header pill aligned with the round headers */}
                 <div className="mb-4 px-2">
-                  <div className="bg-[#F4793B] rounded-md px-5 py-2 text-center">
+                  <div className={`rounded-md px-5 py-2 text-center transition-colors ${
+                    activeRound === 5 || activeRound === 6
+                      ? "bg-[#F4793B] ring-2 ring-[#F4793B]/30"
+                      : "bg-[#F4793B]/70"
+                  }`}>
                     <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
                       FINAL FOUR
                     </div>
@@ -603,25 +627,34 @@ export default function BracketView({
                      (between this round and the next toward center). E8 has no spacer. */}
                 <div className="flex flex-row-reverse mb-4">
                   {[
-                    { name: "ROUND 1", dates: "Mar 19 – 20" },
-                    { name: "ROUND 2", dates: "Mar 21 – 22" },
-                    { name: "SWEET 16", dates: "Mar 26 – 27" },
-                    { name: "ELITE 8", dates: "Mar 28 – 29" },
-                  ].map((h, i) => (
-                    <div key={h.name} className="flex flex-row-reverse items-center">
-                      <div className="w-56 flex-shrink-0">
-                        <div className="bg-[#1B365D] rounded-md px-3 py-2 text-center">
-                          <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
-                            {h.name}
-                          </div>
-                          <div className="text-[10px] text-white/50 mt-1 leading-none">
-                            {h.dates}
+                    { name: "ROUND 1", dates: "Mar 19 – 20", round: 1 },
+                    { name: "ROUND 2", dates: "Mar 21 – 22", round: 2 },
+                    { name: "SWEET 16", dates: "Mar 26 – 27", round: 3 },
+                    { name: "ELITE 8", dates: "Mar 28 – 29", round: 4 },
+                  ].map((h, i) => {
+                    const isActive = activeRound === h.round;
+                    return (
+                      <div key={h.name} className="flex flex-row-reverse items-center">
+                        <div className="w-56 flex-shrink-0">
+                          <div className={`rounded-md px-3 py-2 text-center transition-colors ${
+                            isActive
+                              ? "bg-[#F4793B] ring-2 ring-[#F4793B]/30"
+                              : "bg-[#1B365D]"
+                          }`}>
+                            <div className="text-xs font-extrabold text-white uppercase tracking-widest leading-none">
+                              {h.name}
+                            </div>
+                            <div className={`text-[10px] mt-1 leading-none ${
+                              isActive ? "text-white/80" : "text-white/50"
+                            }`}>
+                              {h.dates}
+                            </div>
                           </div>
                         </div>
+                        {i < 3 && <div className="w-8 flex-shrink-0" />}
                       </div>
-                      {i < 3 && <div className="w-8 flex-shrink-0" />}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {/* Right regions */}
                 <div className="flex flex-col gap-12">
