@@ -159,12 +159,18 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
       ? espnToDbId.get(event.winnerEspnTeamId) ?? null
       : null;
 
+    // ESPN sorts competitors by seed (lower seed = team1), but our DB assigns
+    // team1/team2 by bracket position. When ESPN's order doesn't match the DB,
+    // we need to swap scores to keep them aligned with the correct team.
+    const espnTeam1DbId = event.team1 ? espnToDbId.get(event.team1.espnTeamId) ?? null : null;
+    const scoresSwapped = espnTeam1DbId != null && team2DbId != null && espnTeam1DbId === team2DbId;
+
     await db.update(games)
       .set({
         team1Id: team1DbId,
         team2Id: team2DbId,
-        team1Score: event.team1Score,
-        team2Score: event.team2Score,
+        team1Score: scoresSwapped ? event.team2Score : event.team1Score,
+        team2Score: scoresSwapped ? event.team1Score : event.team2Score,
         status: event.status,
         winnerTeamId: winnerDbId,
         espnEventId: dbGame.espnEventId
@@ -175,8 +181,12 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         statusDetail: event.statusDetail,
         spreadLine: event.spreadLine ?? dbGame.spreadLine,
         spreadDetails: event.spreadDetails ?? dbGame.spreadDetails,
-        moneylineTeam1: event.moneylineTeam1 ?? dbGame.moneylineTeam1,
-        moneylineTeam2: event.moneylineTeam2 ?? dbGame.moneylineTeam2,
+        moneylineTeam1: scoresSwapped
+          ? (event.moneylineTeam2 ?? dbGame.moneylineTeam1)
+          : (event.moneylineTeam1 ?? dbGame.moneylineTeam1),
+        moneylineTeam2: scoresSwapped
+          ? (event.moneylineTeam1 ?? dbGame.moneylineTeam2)
+          : (event.moneylineTeam2 ?? dbGame.moneylineTeam2),
         overUnder: event.overUnder ?? dbGame.overUnder,
         oddsProvider: event.oddsProvider ?? dbGame.oddsProvider,
       })
