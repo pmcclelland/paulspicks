@@ -51,6 +51,48 @@ type LeaderboardTableProps = {
   simBracketUserId?: number | null;
 };
 
+/** Cracked glass SVG overlay for eliminated champion picks */
+function CrackedGlassOverlay({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      viewBox="0 0 120 32"
+      preserveAspectRatio="none"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Impact point slightly left-of-center, radiating fracture lines */}
+      {/* Primary fractures — bold, sharp */}
+      <line x1="38" y1="16" x2="8" y2="3" stroke="rgba(220,38,38,0.35)" strokeWidth="0.8" />
+      <line x1="38" y1="16" x2="2" y2="20" stroke="rgba(220,38,38,0.3)" strokeWidth="0.6" />
+      <line x1="38" y1="16" x2="22" y2="30" stroke="rgba(220,38,38,0.35)" strokeWidth="0.7" />
+      <line x1="38" y1="16" x2="70" y2="4" stroke="rgba(220,38,38,0.4)" strokeWidth="0.8" />
+      <line x1="38" y1="16" x2="95" y2="12" stroke="rgba(220,38,38,0.3)" strokeWidth="0.7" />
+      <line x1="38" y1="16" x2="80" y2="28" stroke="rgba(220,38,38,0.35)" strokeWidth="0.6" />
+      <line x1="38" y1="16" x2="110" y2="25" stroke="rgba(220,38,38,0.25)" strokeWidth="0.5" />
+
+      {/* Secondary fractures — thinner branches off primary lines */}
+      <line x1="20" y1="8" x2="12" y2="14" stroke="rgba(220,38,38,0.2)" strokeWidth="0.5" />
+      <line x1="55" y1="10" x2="62" y2="2" stroke="rgba(220,38,38,0.2)" strokeWidth="0.4" />
+      <line x1="55" y1="10" x2="48" y2="1" stroke="rgba(220,38,38,0.18)" strokeWidth="0.4" />
+      <line x1="60" y1="22" x2="68" y2="31" stroke="rgba(220,38,38,0.2)" strokeWidth="0.4" />
+      <line x1="60" y1="22" x2="52" y2="30" stroke="rgba(220,38,38,0.18)" strokeWidth="0.4" />
+      <line x1="75" y1="8" x2="85" y2="2" stroke="rgba(220,38,38,0.15)" strokeWidth="0.4" />
+      <line x1="28" y1="24" x2="15" y2="28" stroke="rgba(220,38,38,0.18)" strokeWidth="0.4" />
+
+      {/* Concentric stress rings around impact — the "spider web" effect */}
+      <path d="M30 10 Q35 8 42 10" stroke="rgba(220,38,38,0.2)" strokeWidth="0.4" />
+      <path d="M30 22 Q36 25 44 22" stroke="rgba(220,38,38,0.2)" strokeWidth="0.4" />
+      <path d="M22 6 Q38 2 56 8" stroke="rgba(220,38,38,0.12)" strokeWidth="0.3" />
+      <path d="M20 26 Q38 32 58 24" stroke="rgba(220,38,38,0.12)" strokeWidth="0.3" />
+
+      {/* Impact point — small shatter */}
+      <circle cx="38" cy="16" r="2.5" stroke="rgba(220,38,38,0.3)" strokeWidth="0.5" fill="rgba(220,38,38,0.06)" />
+      <circle cx="38" cy="16" r="0.8" fill="rgba(220,38,38,0.25)" />
+    </svg>
+  );
+}
+
 function RobotIcon() {
   return (
     <svg className="w-4 h-4 text-[#5A7A99]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -250,22 +292,18 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                   </TableCell>
                   <TableCell>
                     {entry.championPick ? (
-                      <div className={`relative flex items-center gap-1.5 ${entry.championPick.isEliminated ? "opacity-50" : ""}`}>
+                      <div className="relative flex items-center gap-1.5">
                         {entry.championPick.logoUrl && (
                           <img
                             src={entry.championPick.logoUrl}
                             alt={entry.championPick.abbreviation}
-                            className={`w-5 h-5 object-contain ${entry.championPick.isEliminated ? "grayscale" : ""}`}
+                            className={`w-5 h-5 object-contain ${entry.championPick.isEliminated ? "grayscale opacity-60" : ""}`}
                           />
                         )}
-                        <span className={`text-xs ${entry.championPick.isEliminated ? "text-[#5A7A99] line-through" : "text-[#5A7A99]"}`}>
+                        <span className={`text-xs ${entry.championPick.isEliminated ? "text-[#5A7A99]/60" : "text-[#5A7A99]"}`}>
                           {entry.championPick.abbreviation}
                         </span>
-                        {entry.championPick.isEliminated && (
-                          <svg className="w-3.5 h-3.5 flex-shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                          </svg>
-                        )}
+                        {entry.championPick.isEliminated && <CrackedGlassOverlay />}
                       </div>
                     ) : (
                       <span className="text-xs text-gray-300">&mdash;</span>
@@ -369,22 +407,18 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                         )}
                       </span>
                       {entry.championPick && (
-                        <div className={`flex items-center gap-1 mt-0.5 ${entry.championPick.isEliminated ? "opacity-50" : ""}`}>
+                        <div className="relative flex items-center gap-1 mt-0.5">
                           {entry.championPick.logoUrl && (
                             <img
                               src={entry.championPick.logoUrl}
                               alt={entry.championPick.abbreviation}
-                              className={`w-4 h-4 object-contain ${entry.championPick.isEliminated ? "grayscale" : ""}`}
+                              className={`w-4 h-4 object-contain ${entry.championPick.isEliminated ? "grayscale opacity-60" : ""}`}
                             />
                           )}
-                          <span className={`text-[10px] ${entry.championPick.isEliminated ? "text-[#5A7A99] line-through" : "text-[#5A7A99]"}`}>
+                          <span className={`text-[10px] ${entry.championPick.isEliminated ? "text-[#5A7A99]/60" : "text-[#5A7A99]"}`}>
                             {entry.championPick.abbreviation}
                           </span>
-                          {entry.championPick.isEliminated && (
-                            <svg className="w-3 h-3 flex-shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                            </svg>
-                          )}
+                          {entry.championPick.isEliminated && <CrackedGlassOverlay />}
                         </div>
                       )}
                     </div>
