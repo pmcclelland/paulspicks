@@ -1,6 +1,7 @@
 "use client";
 
-import { type TeamData, type GameResult, PickIcon } from "./bracket-game";
+import { useState } from "react";
+import { type TeamData, type GameResult, type GameInfo, PickIcon, InfoModal } from "./bracket-game";
 import { type GameData } from "./bracket-region";
 
 import { schoolName } from "@/lib/school-names";
@@ -53,6 +54,8 @@ function FinalFourGame({
   eliminatedTeamIds?: Set<number>;
   simProb?: { team1Prob: number; team2Prob: number };
 }) {
+  const [showInfo, setShowInfo] = useState(false);
+
   // Remap bustedPickSlot when teams are swapped
   const bustedPickSlot = swapTeams
     ? (game.bustedPickSlot === "team1" ? "team2" : game.bustedPickSlot === "team2" ? "team1" : null)
@@ -148,11 +151,38 @@ function FinalFourGame({
     );
   }
 
+  const gameInfo: GameInfo = {
+    startTime: game.startTime,
+    venue: game.venue,
+    broadcast: game.broadcast,
+    round: game.round,
+    region: game.region,
+    gameId: game.id,
+    spreadLine: game.spreadLine,
+    spreadDetails: game.spreadDetails,
+    moneylineTeam1: swapTeams ? game.moneylineTeam2 : game.moneylineTeam1,
+    moneylineTeam2: swapTeams ? game.moneylineTeam1 : game.moneylineTeam2,
+    overUnder: game.overUnder,
+    oddsProvider: game.oddsProvider,
+    espnEventId: game.espnEventId,
+  };
+
   return (
     <div className="flex flex-col items-center">
-      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
-        {label}
-      </span>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+          {label}
+        </span>
+        <button
+          onClick={() => setShowInfo(true)}
+          className="w-5 h-5 rounded-full border border-[#BFD4E4] text-[#5A7A99] hover:bg-[#EFF5FA] hover:text-[#1B365D] transition-colors flex items-center justify-center"
+          type="button"
+        >
+          <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
       <div className="w-56 rounded-lg border-2 border-border bg-card shadow-md overflow-hidden group">
         <div className={`border-l-3 ${getHighlight(team1?.id, "team1")}`}>
           {renderTeam(team1, topScore, team1Id, "team1", simPctTop)}
@@ -162,6 +192,16 @@ function FinalFourGame({
           {renderTeam(team2, bottomScore, team2Id, "team2", simPctBottom)}
         </div>
       </div>
+
+      <InfoModal
+        open={showInfo}
+        onClose={() => setShowInfo(false)}
+        team1={team1}
+        team2={team2}
+        result={result}
+        gameInfo={gameInfo}
+        simProb={simProb}
+      />
     </div>
   );
 }
