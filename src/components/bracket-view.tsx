@@ -338,6 +338,8 @@ export default function BracketView({
         ...game,
         team1Id: effectiveTeam1Id,
         team2Id: effectiveTeam2Id,
+        team1Score: isSwapped ? game.team2Score : game.team1Score,
+        team2Score: isSwapped ? game.team1Score : game.team2Score,
         moneylineTeam1: isSwapped ? game.moneylineTeam2 : game.moneylineTeam1,
         moneylineTeam2: isSwapped ? game.moneylineTeam1 : game.moneylineTeam2,
         bustedPickSlot,
