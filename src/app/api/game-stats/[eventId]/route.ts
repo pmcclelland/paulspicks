@@ -148,8 +148,18 @@ export async function GET(
   const teams = boxscore.teams;
   const playersData = boxscore.players || [];
 
-  // Parse game leaders from the top-level leaders array
+  // Parse game leaders from the top-level leaders array.
+  // ESPN does NOT guarantee data.leaders[N] corresponds to boxscore.teams[N] —
+  // the two arrays can be in different orders (e.g. home/away vs away/home).
+  // Build a map keyed by team ID so we can look up leaders by team identity.
   const topLeaders = data.leaders || [];
+  const leadersByTeamId = new Map<string, any[]>();
+  for (const entry of topLeaders) {
+    const teamId = String(entry?.team?.id ?? "");
+    if (teamId && entry?.leaders) {
+      leadersByTeamId.set(teamId, entry.leaders);
+    }
+  }
 
   const parseTeam = (teamIdx: number) => {
     const team = teams[teamIdx];
@@ -173,9 +183,11 @@ export async function GET(
 
     athletes.sort((a, b) => b.points - a.points);
 
-    // Leaders: try top-level leaders first, fall back to computing from player data
+    // Leaders: match by team ID (not array index) to avoid ordering mismatches
+    // between data.leaders and boxscore.teams.
     let leaders: { points: GameLeader | null; rebounds: GameLeader | null; assists: GameLeader | null };
-    const teamLeaderData = topLeaders[teamIdx]?.leaders;
+    const thisTeamId = String(teamInfo.id ?? "");
+    const teamLeaderData = leadersByTeamId.get(thisTeamId);
     if (teamLeaderData) {
       leaders = parseLeaders(teamLeaderData);
     } else {
