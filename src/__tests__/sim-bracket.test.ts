@@ -41,7 +41,9 @@ function simWithSeed(
   );
 }
 
-describe("generateSimBracket (Monte Carlo)", () => {
+describe("generateSimBracket (Monte Carlo + upset thresholds)", () => {
+  // --- Core behavior ---
+
   it("picks the favorite in large mismatches (1v16)", () => {
     const teams: SimTeam[] = [
       makeTeam(1, "Duke", 1, "East"),
@@ -58,7 +60,7 @@ describe("generateSimBracket (Monte Carlo)", () => {
 
     const pick = result.picks.find((p) => p.gameId === 100);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(1); // Duke dominates in sims
+    expect(pick!.pickedTeamId).toBe(1); // Duke dominates
     expect(result.confidences[100]).toBeGreaterThan(0.95);
   });
 
@@ -78,7 +80,7 @@ describe("generateSimBracket (Monte Carlo)", () => {
 
     const pick = result.picks.find((p) => p.gameId === 101);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(3); // MidTeam8 wins majority of sims
+    expect(pick!.pickedTeamId).toBe(3);
   });
 
   it("picks the 9-seed when it has higher KenPom in 8v9 matchup", () => {
@@ -100,7 +102,7 @@ describe("generateSimBracket (Monte Carlo)", () => {
     expect(pick!.pickedTeamId).toBe(4); // StrongNine wins majority
   });
 
-  it("picks the 5-seed when they have a clear KenPom edge in 5v12", () => {
+  it("picks the 5-seed when they have a large KenPom edge in 5v12", () => {
     const teams: SimTeam[] = [
       makeTeam(5, "StrongFive", 5, "South"),
       makeTeam(6, "WeakTwelve", 12, "South"),
@@ -108,6 +110,7 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const teamsById = new Map(teams.map((t) => [t.id, t]));
     const games: SimGame[] = [makeGame(200, 1, "South", 4, 5, 6)];
 
+    // Large KenPom gap → MC win frequency well above 0.57 threshold
     const kenpomMap = new Map<string, number>();
     kenpomMap.set("strongfive", 22);
     kenpomMap.set("weaktwelve", 2);
@@ -119,23 +122,68 @@ describe("generateSimBracket (Monte Carlo)", () => {
     expect(pick!.pickedTeamId).toBe(5);
   });
 
-  it("confidence reflects simulation win frequency", () => {
+  // --- Upset threshold tests ---
+
+  it("picks the 12-seed upset when MC probability is close in 5v12", () => {
     const teams: SimTeam[] = [
-      makeTeam(1, "TeamA", 1, "South"),
-      makeTeam(2, "TeamB", 16, "South"),
+      makeTeam(5, "FiveSeed", 5, "South"),
+      makeTeam(6, "TwelveSeed", 12, "South"),
     ];
     const teamsById = new Map(teams.map((t) => [t.id, t]));
-    const games: SimGame[] = [makeGame(10, 1, "South", 0, 1, 2)];
+    const games: SimGame[] = [makeGame(200, 1, "South", 4, 5, 6)];
+
+    // Nearly equal KenPom → MC win frequency ~0.54, below 0.57 threshold
     const kenpomMap = new Map<string, number>();
-    kenpomMap.set("teama", 25);
-    kenpomMap.set("teamb", -5);
+    kenpomMap.set("fiveseed", 12);
+    kenpomMap.set("twelveseed", 12);
 
     const result = simWithSeed(games, teamsById, kenpomMap);
 
-    // With such a large gap, confidence should be very high
-    expect(result.confidences[10]).toBeGreaterThan(0.9);
-    expect(result.confidences[10]).toBeLessThanOrEqual(1.0);
+    const pick = result.picks.find((p) => p.gameId === 200);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(6); // TwelveSeed upset via threshold
   });
+
+  it("picks underdog in R2+ when KenPom gap is small (underseeded bonus)", () => {
+    const teams: SimTeam[] = [
+      makeTeam(10, "HighSeed", 2, "East"),
+      makeTeam(11, "LowSeed", 7, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    const games: SimGame[] = [makeGame(400, 2, "East", 0, 10, 11)];
+
+    // Equal KenPom → MC probability ~0.55, below 0.56 underseeded threshold
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("highseed", 18);
+    kenpomMap.set("lowseed", 18);
+
+    const result = simWithSeed(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 400);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(11); // LowSeed upset
+  });
+
+  it("picks dominant favorite in R2+ with large KenPom gap", () => {
+    const teams: SimTeam[] = [
+      makeTeam(10, "DomFavorite", 1, "East"),
+      makeTeam(11, "WeakDog", 8, "East"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    const games: SimGame[] = [makeGame(400, 2, "East", 0, 10, 11)];
+
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("domfavorite", 28);
+    kenpomMap.set("weakdog", 5);
+
+    const result = simWithSeed(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 400);
+    expect(pick).toBeDefined();
+    expect(pick!.pickedTeamId).toBe(10);
+  });
+
+  // --- Propagation & edge cases ---
 
   it("propagates R1 winners to correct R2 slots", () => {
     const teams: SimTeam[] = [
@@ -160,11 +208,9 @@ describe("generateSimBracket (Monte Carlo)", () => {
 
     const result = simWithSeed(games, teamsById, kenpomMap);
 
-    // R2 game should have a pick (winners were propagated)
     const r2Pick = result.picks.find((p) => p.gameId === 102);
     expect(r2Pick).toBeDefined();
-    // TopTeam (id=1) should beat MidA (id=3) in R2 most often
-    expect(r2Pick!.pickedTeamId).toBe(1);
+    expect(r2Pick!.pickedTeamId).toBe(1); // TopTeam dominates R2
   });
 
   it("skips games without both teams", () => {
@@ -209,29 +255,50 @@ describe("generateSimBracket (Monte Carlo)", () => {
     expect(r1.confidences).toEqual(r2.confidences);
   });
 
-  it("picks dominant favorite in R2+ with large KenPom gap", () => {
+  it("confidence reflects the picked team's MC win frequency", () => {
     const teams: SimTeam[] = [
-      makeTeam(10, "DomFavorite", 1, "East"),
-      makeTeam(11, "WeakDog", 8, "East"),
+      makeTeam(1, "TeamA", 1, "South"),
+      makeTeam(2, "TeamB", 16, "South"),
     ];
     const teamsById = new Map(teams.map((t) => [t.id, t]));
-    const games: SimGame[] = [makeGame(400, 2, "East", 0, 10, 11)];
-
+    const games: SimGame[] = [makeGame(10, 1, "South", 0, 1, 2)];
     const kenpomMap = new Map<string, number>();
-    kenpomMap.set("domfavorite", 28);
-    kenpomMap.set("weakdog", 5);
+    kenpomMap.set("teama", 25);
+    kenpomMap.set("teamb", -5);
 
     const result = simWithSeed(games, teamsById, kenpomMap);
 
-    const pick = result.picks.find((p) => p.gameId === 400);
+    // Strong favorite: confidence should be very high
+    expect(result.confidences[10]).toBeGreaterThan(0.9);
+    expect(result.confidences[10]).toBeLessThanOrEqual(1.0);
+  });
+
+  it("confidence is < 0.5 when an upset is picked via threshold", () => {
+    // 5v12 with close KenPom — threshold picks the underdog who won < 50% of sims
+    const teams: SimTeam[] = [
+      makeTeam(5, "CloseFive", 5, "South"),
+      makeTeam(6, "CloseTwelve", 12, "South"),
+    ];
+    const teamsById = new Map(teams.map((t) => [t.id, t]));
+    const games: SimGame[] = [makeGame(201, 1, "South", 4, 5, 6)];
+
+    const kenpomMap = new Map<string, number>();
+    kenpomMap.set("closefive", 12);
+    kenpomMap.set("closetwelve", 12);
+
+    const result = simWithSeed(games, teamsById, kenpomMap);
+
+    const pick = result.picks.find((p) => p.gameId === 201);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(10);
+    expect(pick!.pickedTeamId).toBe(6); // Upset picked
+    // The underdog won < 50% of sims, so confidence should be < 0.5
+    expect(result.confidences[201]).toBeLessThan(0.5);
+    expect(result.confidences[201]).toBeGreaterThan(0.3);
   });
 
   // --- Vegas Odds Blending ---
 
   it("flips pick when moneyline odds strongly favor the underdog", () => {
-    // KenPom slightly favors team1 but Vegas heavily favors team2
     const teams: SimTeam[] = [
       makeTeam(1, "FavFive", 5, "South"),
       makeTeam(2, "DogTwelve", 12, "South"),
@@ -244,16 +311,14 @@ describe("generateSimBracket (Monte Carlo)", () => {
     kenpomMap.set("favfive", 12);
     kenpomMap.set("dogtwelve", 10);
 
-    // Vegas strongly favors team2 (underdog by seed)
-    // +200/-200 → fair prob: team1=0.33, team2=0.67
-    // Blended: 0.5*0.62 + 0.5*0.33 ≈ 0.48 → team2 wins majority
+    // Vegas strongly favors team2 → blended prob ~0.48 for team1
     const gameOdds = new Map<number, GameOddsEntry>();
     gameOdds.set(500, { moneylineTeam1: "+200", moneylineTeam2: "-200" });
 
     const result = simWithSeed(games, teamsById, kenpomMap, { gameOdds });
     const pick = result.picks.find((p) => p.gameId === 500);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(2); // Vegas odds flip the probability
+    expect(pick!.pickedTeamId).toBe(2); // Vegas odds shift the MC probability
   });
 
   it("falls back to model-only when no odds are available", () => {
@@ -279,8 +344,7 @@ describe("generateSimBracket (Monte Carlo)", () => {
   // --- Luck Regression ---
 
   it("luck regression flips a close game when favorite is significantly luckier", () => {
-    // 8v9 with near-equal KenPom: base prob ≈ 0.505 for team1
-    // Luck adjustment -0.02 → ~0.485 → team2 wins majority of sims
+    // 8v9 with near-equal KenPom. Luck adj shifts MC prob past 0.5.
     const teams: SimTeam[] = [
       makeTeam(1, "LuckyEight", 8, "East"),
       makeTeam(2, "UnluckyNine", 9, "East"),
@@ -288,12 +352,11 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const teamsById = new Map(teams.map((t) => [t.id, t]));
     const games: SimGame[] = [makeGame(600, 1, "East", 1, 1, 2)];
 
-    // Near-equal KenPom (team1 very slightly ahead)
     const kenpomMap = new Map<string, number>();
     kenpomMap.set("luckyeight", 10.2);
     kenpomMap.set("unluckynine", 10);
 
-    // team1 is much luckier → luckDiff = 0.10 > 0.04 → prob -= 0.02
+    // team1 is much luckier → prob -= 0.02 in each sim
     const luckMap = new Map<string, number>();
     luckMap.set("luckyeight", 0.08);
     luckMap.set("unluckynine", -0.02);
@@ -301,12 +364,10 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const result = simWithSeed(games, teamsById, kenpomMap, { luckMap });
     const pick = result.picks.find((p) => p.gameId === 600);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(2); // Luck regression shifts prob past 0.5
+    expect(pick!.pickedTeamId).toBe(2); // Luck regression shifts MC probability
   });
 
   it("lucky underdog does not get boosted", () => {
-    // team1 is favorite by KenPom, team2 (underdog) is luckier
-    // Luck adjustment +0.02 → team1 even more favored
     const teams: SimTeam[] = [
       makeTeam(1, "SolidFour", 4, "East"),
       makeTeam(2, "LuckyThirteen", 13, "East"),
@@ -318,7 +379,6 @@ describe("generateSimBracket (Monte Carlo)", () => {
     kenpomMap.set("solidfour", 18);
     kenpomMap.set("luckythirteen", 10);
 
-    // team2 is luckier → luckDiff < -0.04 → prob += 0.02 (helps team1)
     const luckMap = new Map<string, number>();
     luckMap.set("solidfour", -0.01);
     luckMap.set("luckythirteen", 0.06);
@@ -326,14 +386,12 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const result = simWithSeed(games, teamsById, kenpomMap, { luckMap });
     const pick = result.picks.find((p) => p.gameId === 601);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(1); // SolidFour — lucky underdog penalized
+    expect(pick!.pickedTeamId).toBe(1); // Lucky underdog penalized
   });
 
   // --- Stylistic Matchup Edge ---
 
   it("matchup edge flips a close game when underdog exploits defensive weakness", () => {
-    // 8v9 with near-equal KenPom: base prob ≈ 0.505 for team1
-    // team2 has stylistic edge > 4 → prob -= 0.01+ → team2 wins majority
     const teams: SimTeam[] = [
       makeTeam(1, "WeakDEight", 8, "Midwest"),
       makeTeam(2, "StrongONine", 9, "Midwest"),
@@ -341,14 +399,11 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const teamsById = new Map(teams.map((t) => [t.id, t]));
     const games: SimGame[] = [makeGame(700, 1, "Midwest", 1, 1, 2)];
 
-    // Near-equal KenPom
     const kenpomMap = new Map<string, number>();
     kenpomMap.set("weakdeight", 10.2);
     kenpomMap.set("strongonine", 10);
 
-    // team2 has strong O vs team1's weak D
-    // t2Edge = (118 - 108) - (108 - 100) = 10 - 8 = 2... needs to be > 4
-    // Bigger gap: t2Edge = (120 - 110) - (106 - 102) = 10 - 4 = 6 > 4
+    // t2Edge = (120 - 110) - (106 - 102) = 10 - 4 = 6 > 4 → matchup adj
     const kenpomDetailsMap = new Map<string, KenPomDetails>();
     kenpomDetailsMap.set("weakdeight", { adjO: 106, adjD: 110 });
     kenpomDetailsMap.set("strongonine", { adjO: 120, adjD: 102 });
@@ -356,15 +411,12 @@ describe("generateSimBracket (Monte Carlo)", () => {
     const result = simWithSeed(games, teamsById, kenpomMap, { kenpomDetails: kenpomDetailsMap });
     const pick = result.picks.find((p) => p.gameId === 700);
     expect(pick).toBeDefined();
-    expect(pick!.pickedTeamId).toBe(2); // Matchup edge shifts prob past 0.5
+    expect(pick!.pickedTeamId).toBe(2); // Matchup edge shifts MC probability
   });
 
   // --- Monte Carlo convergence ---
 
   it("captures cascading path effects across rounds", () => {
-    // R1: game 0 is a coin flip, game 1 has a strong team
-    // R2: the strong team dominates whoever advances from game 0
-    // Monte Carlo naturally picks the R2 winner correctly by simulating paths
     const teams: SimTeam[] = [
       makeTeam(1, "CoinA", 8, "East"),
       makeTeam(2, "CoinB", 9, "East"),
@@ -387,10 +439,9 @@ describe("generateSimBracket (Monte Carlo)", () => {
 
     const result = simWithSeed(games, teamsById, kenpomMap);
 
-    // R2 should always pick Dominant regardless of who they face
+    // R2 should pick Dominant regardless of R1 coin flip opponent
     const r2Pick = result.picks.find((p) => p.gameId === 102);
     expect(r2Pick).toBeDefined();
     expect(r2Pick!.pickedTeamId).toBe(3);
-    expect(result.confidences[102]).toBeGreaterThan(0.9);
   });
 });

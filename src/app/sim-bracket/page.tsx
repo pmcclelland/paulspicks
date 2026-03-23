@@ -442,19 +442,25 @@ export default function SimBracketPage() {
           <div className="mt-4 space-y-4">
             <Card className="border-[#F4793B]/30">
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-[#1B365D]">Monte Carlo Simulation</h3>
+                <h3 className="text-sm font-semibold text-[#1B365D]">Monte Carlo + Upset Thresholds</h3>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  The sim bracket runs <span className="text-[#1B365D] font-medium">10,000 full tournament
-                  simulations</span>. In each simulation, every game&apos;s outcome is randomly sampled based
-                  on the enhanced win probability. After all simulations, each game&apos;s pick is the team
-                  that won that game most often. The confidence percentage is the fraction of simulations
-                  that team won.
+                  The sim bracket is a two-phase hybrid. <span className="text-[#1B365D] font-medium">Phase
+                  1</span> runs <span className="text-[#1B365D] font-medium">10,000 full tournament
+                  simulations</span> &mdash; each game&apos;s outcome is randomly sampled based on the enhanced
+                  win probability. This produces a win frequency for every team in every game, capturing
+                  cascading path effects that single-pass approaches miss.
                 </p>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  This captures <span className="text-[#1B365D] font-medium">cascading path effects</span> that
-                  single-pass approaches miss. A weaker team on an easier bracket path may be a better later-round
-                  pick than a stronger team in a brutal region, because the Monte Carlo naturally accounts for who
-                  they&apos;re likely to face.
+                  <span className="text-[#1B365D] font-medium">Phase 2</span> applies seed-matchup-specific
+                  upset thresholds to those Monte Carlo probabilities. Pure Monte Carlo always picks the
+                  favorite (majority winner), producing a chalky bracket. The thresholds inject upsets at
+                  historically justified rates &mdash; when the favorite&apos;s simulation win frequency is
+                  close enough to the historical upset rate for that seed matchup, the underdog gets picked.
+                </p>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  The confidence percentage shows the picked team&apos;s actual Monte Carlo win frequency.
+                  When an upset is picked, confidence will be below 50% &mdash; reflecting the contrarian
+                  nature of the pick.
                 </p>
               </CardContent>
             </Card>
@@ -532,19 +538,53 @@ export default function SimBracketPage() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#1B365D]">Upset Thresholds (Phase 2)</h3>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  After Monte Carlo produces win frequencies, seed-matchup thresholds decide whether to go
+                  contrarian. If the higher seed&apos;s win frequency falls below the threshold, the lower
+                  seed gets picked as an upset.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="text-xs w-full">
+                    <thead>
+                      <tr className="text-left text-[#5A7A99]">
+                        <th className="py-1 pr-4 font-medium">Matchup</th>
+                        <th className="py-1 pr-4 font-medium">Threshold</th>
+                        <th className="py-1 font-medium">Historical Upset %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[#1B365D] font-mono">
+                      <tr><td className="py-0.5 pr-4">8 vs 9</td><td className="pr-4">50%</td><td>~49%</td></tr>
+                      <tr><td className="py-0.5 pr-4">5 vs 12</td><td className="pr-4">57%</td><td>~36%</td></tr>
+                      <tr><td className="py-0.5 pr-4">6 vs 11</td><td className="pr-4">55%</td><td>~33%</td></tr>
+                      <tr><td className="py-0.5 pr-4">7 vs 10</td><td className="pr-4">55%</td><td>~33%</td></tr>
+                      <tr><td className="py-0.5 pr-4">4 vs 13</td><td className="pr-4">52%</td><td>~21%</td></tr>
+                      <tr><td className="py-0.5 pr-4">Others</td><td className="pr-4">50%</td><td>&lt;10%</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-sm text-[#5A7A99] leading-relaxed">
+                  In R2+, a base threshold of 53% is used, boosted to 56% when the underdog&apos;s KenPom adjEM
+                  is within 3 points of the favorite (underseeded team bonus).
+                </p>
+              </CardContent>
+            </Card>
+
             <Card className="border-[#1B365D]/20">
               <CardContent className="p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-[#1B365D]">Convergence</h3>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  With 10,000 simulations, the picks converge to stable outcomes. Each simulation randomly
-                  samples game results and propagates winners through the bracket, so later-round picks
-                  naturally account for all possible paths &mdash; not just the most likely one. The confidence
-                  percentages show how decisively the simulation converged on each pick.
+                  With 10,000 simulations, the win frequencies converge to stable values. Each simulation
+                  randomly samples game results and propagates winners through the bracket, so later-round
+                  frequencies naturally account for all possible paths &mdash; not just the most likely one.
                 </p>
                 <p className="text-sm text-[#5A7A99] leading-relaxed">
-                  Lower confidence in later rounds is expected: more teams can reach those games across
-                  simulations, spreading the win share. A 40% confidence in the Elite Eight means
-                  that team won that specific game in 4,000 out of 10,000 tournament runs.
+                  Confidence below 50% indicates an upset pick &mdash; the team won fewer than half the
+                  simulations but was selected because the threshold logic says the matchup warrants it.
+                  Lower confidence in later rounds is also expected as more teams can reach those games
+                  across simulations.
                 </p>
               </CardContent>
             </Card>

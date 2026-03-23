@@ -1,6 +1,7 @@
 import { getNextGame, getSlotInNextGame, REGIONS } from "@/lib/bracket-utils";
 import {
   getWinProbability,
+  lookupAdjEM,
   type SimTeam,
   type SimGame,
 } from "@/lib/simulation";
@@ -147,16 +148,66 @@ function advanceWinner(
 }
 
 /**
- * Generate a sim bracket using Monte Carlo simulation.
+ * Determine whether to pick the underdog based on seed-matchup thresholds.
  *
- * Runs N full tournament simulations where each game outcome is randomly
- * sampled based on enhanced win probabilities (KenPom + historical + Vegas
- * odds + luck regression + matchup edge). For each game, picks the team
- * that won most often across all simulations. Confidence = win frequency.
+ * Monte Carlo gives us accurate probabilities that account for path effects,
+ * but always picking the favorite produces a chalky bracket. These thresholds
+ * inject upsets at historically justified rates — picking the underdog when
+ * the favorite's win frequency is close enough to the historical upset rate.
+ */
+function shouldPickUpset(
+  favorite: SimTeam,
+  underdog: SimTeam,
+  favProb: number, // P(favorite wins), always >= 0.5
+  round: number,
+  kenpomMap: Map<string, number>
+): boolean {
+  // R1: use seed-matchup-specific thresholds tuned to historical upset rates
+  if (round === 1) {
+    const matchup = `${Math.min(favorite.seed, underdog.seed)}-${Math.max(favorite.seed, underdog.seed)}`;
+
+    // 8v9: pure toss-up, just trust the simulation
+    if (matchup === "8-9") return favProb < 0.5;
+
+    // 5v12: historically ~36% upset rate
+    if (matchup === "5-12") return favProb < 0.57;
+
+    // 6v11, 7v10: historically ~33% upset rate
+    if (matchup === "6-11" || matchup === "7-10") return favProb < 0.55;
+
+    // 4v13: historically ~21% upset rate
+    if (matchup === "4-13") return favProb < 0.52;
+
+    // All other R1 (1v16, 2v15, 3v14): only pick upset if sim says underdog is actually better
+    return favProb < 0.5;
+  }
+
+  // R2+: pick underdog when it's genuinely close
+  let threshold = 0.53;
+
+  // Boost threshold for underdogs with strong KenPom (underseeded teams)
+  const underdogEM = lookupAdjEM(underdog.name, kenpomMap);
+  const favoriteEM = lookupAdjEM(favorite.name, kenpomMap);
+  if (underdogEM !== null && favoriteEM !== null) {
+    if (underdogEM > favoriteEM - 3) {
+      threshold = 0.56; // more willing to pick the upset
+    }
+  }
+
+  return favProb < threshold;
+}
+
+/**
+ * Generate a sim bracket using Monte Carlo simulation with upset thresholds.
  *
- * This captures cascading effects that single-pass approaches miss:
- * a weaker team on an easier path may be a better pick than a stronger
- * team in a brutal bracket region.
+ * Phase 1: Runs N full tournament simulations where each game outcome is
+ * randomly sampled based on enhanced win probabilities. This captures
+ * cascading path effects that single-pass approaches miss.
+ *
+ * Phase 2: For each game, uses the Monte Carlo win frequencies as the
+ * probability estimate, then applies seed-matchup-specific upset thresholds
+ * to decide whether to go contrarian. This produces a bracket with a
+ * realistic number of upsets rather than pure chalk.
  */
 export function generateSimBracket(
   games: SimGame[],
@@ -182,15 +233,14 @@ export function generateSimBracket(
     gamesByRound.set(r, games.filter((g) => g.round === r));
   }
 
+  // --- Phase 1: Monte Carlo simulation ---
   // Track win counts per game: gameId -> (teamId -> count)
   const winCounts = new Map<number, Map<number, number>>();
   for (const g of games) {
     winCounts.set(g.id, new Map());
   }
 
-  // Run N simulations
   for (let sim = 0; sim < simCount; sim++) {
-    // Initialize game slots for this simulation
     const simSlots = new Map<
       number,
       { team1Id: number | null; team2Id: number | null }
@@ -199,7 +249,6 @@ export function generateSimBracket(
       simSlots.set(g.id, { team1Id: g.team1Id, team2Id: g.team2Id });
     }
 
-    // Simulate round by round
     for (let round = 1; round <= 6; round++) {
       const roundGames = gamesByRound.get(round)!;
 
@@ -224,40 +273,77 @@ export function generateSimBracket(
           continue;
         }
 
-        // Record win
         const gameCounts = winCounts.get(game.id)!;
         gameCounts.set(winnerId, (gameCounts.get(winnerId) || 0) + 1);
-
-        // Advance winner to next round
         advanceWinner(game, round, winnerId, gameMap, simSlots);
       }
     }
   }
 
-  // Pick majority winner per game
+  // --- Phase 2: Pick winners with upset thresholds ---
+  // Process round by round, propagating picks forward so later-round
+  // upset decisions use the teams we actually picked in earlier rounds.
+  const pickSlots = new Map<
+    number,
+    { team1Id: number | null; team2Id: number | null }
+  >();
+  for (const g of games) {
+    pickSlots.set(g.id, { team1Id: g.team1Id, team2Id: g.team2Id });
+  }
+
   const picks: SimBracketPick[] = [];
   const confidences: Record<number, number> = {};
 
-  // Process in round order for consistent output
-  const sortedGames = [...games].sort(
-    (a, b) => a.round - b.round || a.gameIndex - b.gameIndex
-  );
+  for (let round = 1; round <= 6; round++) {
+    const roundGames = gamesByRound.get(round)!;
 
-  for (const game of sortedGames) {
-    const gameCounts = winCounts.get(game.id)!;
-    if (gameCounts.size === 0) continue;
+    for (const game of roundGames) {
+      const slots = pickSlots.get(game.id)!;
+      const t1 = slots.team1Id ? teamsById.get(slots.team1Id) : null;
+      const t2 = slots.team2Id ? teamsById.get(slots.team2Id) : null;
 
-    let bestTeamId = 0;
-    let bestCount = 0;
-    for (const [teamId, count] of gameCounts) {
-      if (count > bestCount) {
-        bestTeamId = teamId;
-        bestCount = count;
+      let winnerId: number;
+      let confidence: number;
+
+      if (t1 && t2) {
+        const gameCounts = winCounts.get(game.id)!;
+        const t1Wins = gameCounts.get(t1.id) || 0;
+        const t2Wins = gameCounts.get(t2.id) || 0;
+        const totalWins = t1Wins + t2Wins;
+
+        // Identify favorite/underdog by seed (lower seed number = bracket favorite).
+        // For same-seed matchups (cross-region), fall back to MC probability.
+        const seedFav = t1.seed < t2.seed ? t1
+          : t2.seed < t1.seed ? t2
+          : (t1Wins >= t2Wins ? t1 : t2);
+        const seedDog = seedFav.id === t1.id ? t2 : t1;
+        const seedFavWins = seedFav.id === t1.id ? t1Wins : t2Wins;
+        const seedFavProb = totalWins > 0 ? seedFavWins / totalWins : 0.5;
+
+        const pickUpset = shouldPickUpset(
+          seedFav, seedDog, seedFavProb, round, kenpomMap
+        );
+        winnerId = pickUpset ? seedDog.id : seedFav.id;
+
+        // Confidence = the picked team's actual MC win frequency for this game
+        const pickedWins = winnerId === t1.id ? t1Wins : t2Wins;
+        confidence = totalWins > 0 ? pickedWins / totalWins : 0.5;
+      } else if (t1) {
+        winnerId = t1.id;
+        confidence = 1.0;
+      } else if (t2) {
+        winnerId = t2.id;
+        confidence = 1.0;
+      } else {
+        continue;
       }
-    }
 
-    picks.push({ gameId: game.id, pickedTeamId: bestTeamId });
-    confidences[game.id] = bestCount / simCount;
+      picks.push({ gameId: game.id, pickedTeamId: winnerId });
+      confidences[game.id] = confidence;
+
+      // Propagate the pick forward (not the MC majority winner)
+      advanceWinner(game, round, winnerId, gameMap, pickSlots);
+    }
   }
 
   return { picks, confidences };
