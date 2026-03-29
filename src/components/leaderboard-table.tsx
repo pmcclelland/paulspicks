@@ -41,6 +41,7 @@ type LeaderboardEntry = {
   maxPossible?: number;
   pointsRemaining?: number;
   championPick?: ChampionPick | null;
+  canStillWin?: boolean;
 };
 
 type SortField = "rank" | "totalPoints" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6" | "pointsRemaining";
@@ -219,10 +220,13 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
             {sorted.map((entry) => {
               const isCurrentUser = currentUserId === entry.userId;
               const isSimBracket = simBracketUserId != null && entry.userId === simBracketUserId;
+              const isEliminated = entry.canStillWin === false;
               return (
                 <TableRow
                   key={entry.userId}
                   className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
+                    isEliminated ? "opacity-50" : ""
+                  } ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : isSimBracket
@@ -237,11 +241,14 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                       {isSimBracket && (
                         <span className="mr-1.5 flex-shrink-0"><RobotIcon /></span>
                       )}
-                      <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
+                      <span className={`group-hover:text-[#F4793B] group-hover:underline transition-colors ${isEliminated ? "text-[#5A7A99]" : "text-[#1B365D]"}`}>
                         {entry.name}
                       </span>
                       {isCurrentUser && (
                         <span className="ml-2 text-xs text-[#F4793B]">(you)</span>
+                      )}
+                      {isEliminated && (
+                        <span className="ml-2 text-[10px] text-[#5A7A99] bg-[#EFF5FA] px-1.5 py-0.5 rounded">Eliminated</span>
                       )}
                       {badges.length > 0 && (
                         <BadgeIcons badges={badges} userId={entry.userId} />
@@ -334,10 +341,13 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
             {sorted.map((entry) => {
               const isCurrentUser = currentUserId === entry.userId;
               const isSimBracket = simBracketUserId != null && entry.userId === simBracketUserId;
+              const isEliminated = entry.canStillWin === false;
               return (
                 <TableRow
                   key={entry.userId}
                   className={`group cursor-pointer transition-colors hover:bg-[#EFF5FA] ${
+                    isEliminated ? "opacity-50" : ""
+                  } ${
                     isCurrentUser
                       ? "bg-[#1B365D]/5 border-l-2 border-l-[#F4793B] font-medium"
                       : isSimBracket
@@ -353,11 +363,14 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                         {isSimBracket && (
                           <span className="mr-1 flex-shrink-0"><RobotIcon /></span>
                         )}
-                        <span className="text-[#1B365D] group-hover:text-[#F4793B] group-hover:underline transition-colors">
+                        <span className={`group-hover:text-[#F4793B] group-hover:underline transition-colors ${isEliminated ? "text-[#5A7A99]" : "text-[#1B365D]"}`}>
                           {entry.name}
                         </span>
                         {isCurrentUser && (
                           <span className="ml-1 text-xs text-[#F4793B]">(you)</span>
+                        )}
+                        {isEliminated && (
+                          <span className="ml-1 text-[10px] text-[#5A7A99] bg-[#EFF5FA] px-1.5 py-0.5 rounded">Elim</span>
                         )}
                         {badges.length > 0 && (
                           <BadgeIcons badges={badges} userId={entry.userId} />
