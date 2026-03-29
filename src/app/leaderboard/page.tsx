@@ -58,6 +58,7 @@ export default function LeaderboardPage() {
   const [simBracketUserId, setSimBracketUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<"standings" | "path">("standings");
 
   useEffect(() => {
     async function fetchAll() {
@@ -138,30 +139,63 @@ export default function LeaderboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-10">
       <h1 className="text-2xl font-bold">Leaderboard</h1>
 
-      {entries.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg">No entries yet.</p>
-          <p className="text-sm mt-2">
-            The leaderboard will populate once users submit brackets and games
-            are played.
-          </p>
-        </div>
-      ) : (
-        <LeaderboardTable entries={entries} badges={badges} simBracketUserId={simBracketUserId} />
+      <div className="flex gap-6 border-b border-[#1B365D]/10">
+        {(["standings", "path"] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`pb-2 text-sm font-medium transition-colors ${
+              activeTab === key
+                ? "text-[#1B365D] border-b-2 border-[#F4793B]"
+                : "text-[#5A7A99] hover:text-[#1B365D]"
+            }`}
+          >
+            {key === "standings" ? "Standings" : "Path to Victory"}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "standings" && (
+        <>
+          {entries.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <p className="text-lg">No entries yet.</p>
+              <p className="text-sm mt-2">
+                The leaderboard will populate once users submit brackets and games
+                are played.
+              </p>
+            </div>
+          ) : (
+            <LeaderboardTable entries={entries} badges={badges} simBracketUserId={simBracketUserId} />
+          )}
+
+          {uniquePicks.length > 0 && <UniquePicks picks={uniquePicks} />}
+
+          {badges.length > 0 && <Badges badges={badges} />}
+
+          <section>
+            <h2 className="text-lg font-semibold mb-4 text-[#1B365D]">
+              Tournament Buzz
+            </h2>
+            <SocialBuzz />
+          </section>
+        </>
       )}
 
-      {pathToVictory.length > 0 && <PathToVictory entries={pathToVictory} />}
-
-      {uniquePicks.length > 0 && <UniquePicks picks={uniquePicks} />}
-
-      {badges.length > 0 && <Badges badges={badges} />}
-
-      <section>
-        <h2 className="text-lg font-semibold mb-4 text-[#1B365D]">
-          Tournament Buzz
-        </h2>
-        <SocialBuzz />
-      </section>
+      {activeTab === "path" && (
+        <>
+          {pathToVictory.length > 0 ? (
+            <PathToVictory entries={pathToVictory} />
+          ) : (
+            <div className="text-center py-16 text-muted-foreground">
+              <p className="text-lg">No path to victory data yet.</p>
+              <p className="text-sm mt-2">
+                This will populate once the tournament progresses.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
