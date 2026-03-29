@@ -247,9 +247,6 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                       {isCurrentUser && (
                         <span className="ml-2 text-xs text-[#F4793B]">(you)</span>
                       )}
-                      {isEliminated && (
-                        <span className="ml-2 text-[10px] text-[#5A7A99] bg-[#EFF5FA] px-1.5 py-0.5 rounded">Eliminated</span>
-                      )}
                       {badges.length > 0 && (
                         <BadgeIcons badges={badges} userId={entry.userId} />
                       )}
@@ -368,9 +365,6 @@ export default function LeaderboardTable({ entries, badges = [], simBracketUserI
                         </span>
                         {isCurrentUser && (
                           <span className="ml-1 text-xs text-[#F4793B]">(you)</span>
-                        )}
-                        {isEliminated && (
-                          <span className="ml-1 text-[10px] text-[#5A7A99] bg-[#EFF5FA] px-1.5 py-0.5 rounded">Elim</span>
                         )}
                         {badges.length > 0 && (
                           <BadgeIcons badges={badges} userId={entry.userId} />
