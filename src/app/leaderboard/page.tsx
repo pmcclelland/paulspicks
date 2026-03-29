@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import LeaderboardTable from "@/components/leaderboard-table";
+import SimulationView from "@/components/simulation-view";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type LeaderboardEntry = {
   rank: number;
@@ -66,17 +68,30 @@ export default function LeaderboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-bold mb-8">Leaderboard</h1>
 
-      {entries.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg">No entries yet.</p>
-          <p className="text-sm mt-2">
-            The leaderboard will populate once users submit brackets and games
-            are played.
-          </p>
-        </div>
-      ) : (
-        <LeaderboardTable entries={entries} />
-      )}
+      <Tabs defaultValue="standings">
+        <TabsList className="mb-6">
+          <TabsTrigger value="standings">Standings</TabsTrigger>
+          <TabsTrigger value="simulation">Path to Winning</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="standings">
+          {entries.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <p className="text-lg">No entries yet.</p>
+              <p className="text-sm mt-2">
+                The leaderboard will populate once users submit brackets and
+                games are played.
+              </p>
+            </div>
+          ) : (
+            <LeaderboardTable entries={entries} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="simulation">
+          <SimulationView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
