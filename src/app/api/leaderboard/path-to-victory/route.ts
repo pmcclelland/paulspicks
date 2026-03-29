@@ -68,8 +68,7 @@ export async function GET() {
       }
     }
 
-    // Build per-game pick map: gameId -> { teamId -> userId[] }
-    // Only for remaining games (not final, at least one alive team picked)
+    // Build per-game pick map for remaining games: gameId -> { teamId -> userId[] }
     const gamePickMap = new Map<number, Map<number, number[]>>();
     for (const pick of allPicks) {
       if (!userIdSet.has(pick.userId)) continue;
@@ -86,14 +85,27 @@ export async function GET() {
       teamPickers.get(pick.pickedTeamId)!.push(pick.userId);
     }
 
-    // Build per-user pick lookup: userId -> gameId -> pickedTeamId
+    // Build per-user live picks: userId -> Set<gameId> (only live picks)
+    // and userId -> gameId -> pickedTeamId (all picks)
     const userPickMap = new Map<number, Map<number, number>>();
+    const userLivePickTeams = new Map<number, Set<number>>(); // userId -> Set<teamId> they need to win
+    for (const user of allUsers) {
+      userLivePickTeams.set(user.id, new Set());
+    }
     for (const pick of allPicks) {
       if (!userIdSet.has(pick.userId)) continue;
       if (!userPickMap.has(pick.userId)) {
         userPickMap.set(pick.userId, new Map());
       }
       userPickMap.get(pick.userId)!.set(pick.gameId, pick.pickedTeamId);
+
+      // Track live pick teams (not final, not eliminated)
+      if (
+        pick.gameStatus !== "final" &&
+        !eliminatedTeamIds.has(pick.pickedTeamId)
+      ) {
+        userLivePickTeams.get(pick.userId)?.add(pick.pickedTeamId);
+      }
     }
 
     // Get championship picks for display
@@ -140,7 +152,7 @@ export async function GET() {
       }
     }
 
-    // Compute best case points
+    // Compute best case points (if all your live picks are correct)
     const bestCasePoints = new Map<number, number>();
     for (const user of allUsers) {
       bestCasePoints.set(
@@ -163,9 +175,64 @@ export async function GET() {
       currentRankMap.set(sortedByPoints[i].userId, rank);
     }
 
-    const maxCurrentPoints = Math.max(
-      ...allUsers.map((u) => currentPoints.get(u.id) ?? 0)
-    );
+    // ===================================================================
+    // Correct "can still win" check:
+    // In user U's best scenario, all of U's live picks are correct.
+    // For each competitor V, compute V's score in that same scenario:
+    //   V.currentPoints + points for V's live picks where V picked the
+    //   SAME team as U (those outcomes are forced by U's scenario).
+    // For games where V has a live pick but U doesn't (U's team was
+    // eliminated), we can choose the outcome to hurt V — so V gets 0
+    // from those games in U's best scenario.
+    // U can win if U's best >= every V's score in U's scenario.
+    // ===================================================================
+    function computeCanStillWin(userId: number): boolean {
+      const uBest = bestCasePoints.get(userId) ?? 0;
+      const uLiveTeams = userLivePickTeams.get(userId) ?? new Set();
+
+      for (const other of allUsers) {
+        if (other.id === userId) continue;
+
+        let vScoreInUScenario = currentPoints.get(other.id) ?? 0;
+
+        // For each remaining game, check if V gains points in U's scenario
+        for (const [gameId, teamPickers] of gamePickMap) {
+          const game = gamesMap.get(gameId);
+          if (!game) continue;
+          const pts = POINTS_PER_ROUND[game.round] ?? 0;
+
+          // What did V pick for this game?
+          const vPick = userPickMap.get(other.id)?.get(gameId);
+          if (!vPick || eliminatedTeamIds.has(vPick)) continue;
+          // V must have a live pick in this game
+          const vInLive = teamPickers.get(vPick)?.includes(other.id);
+          if (!vInLive) continue;
+
+          // What did U pick for this game?
+          const uPick = userPickMap.get(userId)?.get(gameId);
+          const uHasLivePick =
+            uPick && !eliminatedTeamIds.has(uPick) && uLiveTeams.has(uPick);
+
+          if (uHasLivePick) {
+            // U's scenario forces this game's winner = U's pick
+            if (vPick === uPick) {
+              // V picked same team as U — V also gets points
+              vScoreInUScenario += pts;
+            }
+            // else: V picked differently — V gets 0 (good for U)
+          } else {
+            // U has no live pick here — outcome is flexible in U's scenario.
+            // To maximize U's chance, choose outcome that denies V points.
+            // So V gets 0 from this game.
+          }
+        }
+
+        if (vScoreInUScenario > uBest) {
+          return false; // V would still beat U even in U's best scenario
+        }
+      }
+      return true;
+    }
 
     // Helper to build team info
     function teamInfo(teamId: number | null) {
@@ -180,14 +247,13 @@ export async function GET() {
       };
     }
 
-    // For each user, build their path to victory:
-    // For each remaining game, determine the outcome this user needs and
-    // show the cross-bracket impact (which named users gain/lose points)
+    // Build entries for each user
     const entries = allUsers.map((user) => {
       const userId = user.id;
       const userPts = currentPoints.get(userId) ?? 0;
       const userBest = bestCasePoints.get(userId) ?? 0;
       const userRemaining = pointsRemaining.get(userId) ?? 0;
+      const myLiveTeams = userLivePickTeams.get(userId) ?? new Set<number>();
 
       const bestCaseRank =
         1 +
@@ -200,18 +266,11 @@ export async function GET() {
         1 +
         allUsers.filter(
           (u) =>
-            u.id !== userId &&
-            (bestCasePoints.get(u.id) ?? 0) > userPts
+            u.id !== userId && (bestCasePoints.get(u.id) ?? 0) > userPts
         ).length;
 
-      const canStillWin = userBest >= maxCurrentPoints;
+      const canStillWin = computeCanStillWin(userId);
 
-      // Build needed outcomes for this user
-      // Two categories:
-      // 1. "Needs to win" — games where this user has a live pick
-      // 2. "Needs to lose" — games where this user has NO live pick (their team
-      //    eliminated or they agree with everyone) BUT a competitor ahead has a
-      //    live pick, so this user needs the competitor's pick to lose
       type OutcomeEntry = {
         gameId: number;
         round: number;
@@ -231,7 +290,6 @@ export async function GET() {
         } | null;
         type: "win" | "lose";
         gameStatus: string;
-        // Cross-bracket impact: who gains and who loses points from this outcome
         usersGaining: { name: string; points: number }[];
         usersLosing: { name: string; points: number }[];
       };
@@ -239,7 +297,7 @@ export async function GET() {
       const outcomes: OutcomeEntry[] = [];
       const processedGames = new Set<number>();
 
-      // Category 1: Games where this user has a live pick
+      // Category 1: "Needs to win" — games where this user has a live pick
       for (const [gameId, teamPickers] of gamePickMap) {
         const game = gamesMap.get(gameId);
         if (!game) continue;
@@ -247,7 +305,6 @@ export async function GET() {
         const myPick = userPickMap.get(userId)?.get(gameId);
         if (!myPick || eliminatedTeamIds.has(myPick)) continue;
 
-        // Check if this user's pick is in the live picks for this game
         const myTeamPickers = teamPickers.get(myPick);
         if (!myTeamPickers || !myTeamPickers.includes(userId)) continue;
 
@@ -257,19 +314,15 @@ export async function GET() {
         const pickedTeamInfo = teamInfo(myPick);
         if (!pickedTeamInfo) continue;
 
-        // Opponent is the other team in the game
         const opponentTeamId =
           game.team1Id === myPick ? game.team2Id : game.team1Id;
 
-        // Who gains points if my pick wins (same team pickers)
         const usersGaining: { name: string; points: number }[] = [];
         const usersLosing: { name: string; points: number }[] = [];
-        const samePickers = teamPickers.get(myPick) ?? [];
-        for (const uid of samePickers) {
+        for (const uid of (teamPickers.get(myPick) ?? [])) {
           if (uid === userId) continue;
           usersGaining.push({ name: userNameMap.get(uid) ?? "?", points: pts });
         }
-        // Who loses points if my pick wins (other team pickers)
         for (const [tid, pickers] of teamPickers) {
           if (tid === myPick) continue;
           for (const uid of pickers) {
@@ -295,17 +348,18 @@ export async function GET() {
         });
       }
 
-      // Category 2: Games where this user does NOT have a live pick,
-      // but competitors do — user needs the outcome that hurts competitors
-      // (especially those ahead in standings)
+      // Category 2: "Needs others to lose" — games where this user has
+      // NO live pick but competitors do. Pick the outcome that hurts the
+      // most competitors WITHOUT conflicting with this user's own needed
+      // team wins (don't recommend a team losing if we need them elsewhere).
       for (const [gameId, teamPickers] of gamePickMap) {
         if (processedGames.has(gameId)) continue;
 
         const game = gamesMap.get(gameId);
         if (!game) continue;
 
-        // Collect all competitors with live picks in this game
-        const competitorsByTeam = new Map<number, string[]>(); // teamId -> names
+        // Collect competitors' live picks in this game
+        const competitorsByTeam = new Map<number, string[]>();
         for (const [tid, pickers] of teamPickers) {
           const names = pickers
             .filter((uid) => uid !== userId)
@@ -317,35 +371,44 @@ export async function GET() {
 
         if (competitorsByTeam.size === 0) continue;
 
-        // If all competitors picked the same team, user needs the OTHER team to win
-        // If competitors split, pick the outcome that hurts the most competitors
-        // (especially those ahead in the standings)
         const pts = POINTS_PER_ROUND[game.round] ?? 0;
-        const teamEntries = [...competitorsByTeam.entries()];
 
-        // For each possible team that could win, compute how many competitor
-        // points are lost. User wants to maximize competitors' pain.
-        // Find which team winning would deny the most points to competitors
-        // ahead of this user.
-        let bestOutcomeTeam: number | null = null;
-        let bestOutcomeLosing: { name: string; points: number }[] = [];
-        let bestOutcomeGaining: { name: string; points: number }[] = [];
-        let bestScore = -1;
-
-        // Get all teams involved in live picks for this game
+        // Get all alive teams that could win this game
         const teamsInGame = new Set<number>();
         for (const [tid] of teamPickers) teamsInGame.add(tid);
-        // Also add any team in the game itself that's alive
         if (game.team1Id && !eliminatedTeamIds.has(game.team1Id))
           teamsInGame.add(game.team1Id);
         if (game.team2Id && !eliminatedTeamIds.has(game.team2Id))
           teamsInGame.add(game.team2Id);
 
+        let bestOutcomeTeam: number | null = null;
+        let bestOutcomeLosing: { name: string; points: number }[] = [];
+        let bestOutcomeGaining: { name: string; points: number }[] = [];
+        let bestScore = -1;
+
         for (const winnerTeamId of teamsInGame) {
+          // CONFLICT CHECK: if this outcome would eliminate a team we need
+          // to win in another game, skip it.
+          // The losing team(s) are all teams in the game that aren't the winner.
+          let conflictsWithOwnPicks = false;
+          for (const otherTeamId of teamsInGame) {
+            if (otherTeamId === winnerTeamId && myLiveTeams.has(otherTeamId)) {
+              // This outcome has our needed team winning — not a conflict,
+              // but we shouldn't be in this branch (would be processedGames).
+              // Still safe to proceed.
+            }
+            if (otherTeamId !== winnerTeamId && myLiveTeams.has(otherTeamId)) {
+              // This outcome eliminates a team we need to win elsewhere!
+              conflictsWithOwnPicks = true;
+              break;
+            }
+          }
+          if (conflictsWithOwnPicks) continue;
+
           const losing: { name: string; points: number }[] = [];
           const gaining: { name: string; points: number }[] = [];
 
-          for (const [tid, names] of teamEntries) {
+          for (const [tid, names] of competitorsByTeam) {
             if (tid === winnerTeamId) {
               for (const n of names) gaining.push({ name: n, points: pts });
             } else {
@@ -353,8 +416,6 @@ export async function GET() {
             }
           }
 
-          // Score: prefer outcomes that hurt more competitors (weighted by
-          // whether they're ahead of us)
           const score = losing.length;
           if (score > bestScore) {
             bestScore = score;
@@ -386,15 +447,11 @@ export async function GET() {
         }
       }
 
-      // Sort: "win" outcomes first, then by round (later rounds = more points),
-      // then by number of competitors hurt
+      // Sort: wins first, then by points desc, then by competitors hurt desc
       outcomes.sort((a, b) => {
-        // Wins first
         if (a.type !== b.type) return a.type === "win" ? -1 : 1;
-        // Higher points first
         if (b.pointsAvailable !== a.pointsAvailable)
           return b.pointsAvailable - a.pointsAvailable;
-        // More competitors hurt first
         return b.usersLosing.length - a.usersLosing.length;
       });
 
