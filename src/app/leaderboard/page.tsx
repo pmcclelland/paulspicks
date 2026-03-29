@@ -23,6 +23,7 @@ type LeaderboardEntry = {
   maxPossible?: number;
   pointsRemaining?: number;
   championPick?: ChampionPick | null;
+  canStillWin?: boolean;
 };
 
 type UniquePick = {
@@ -83,10 +84,22 @@ export default function LeaderboardPage() {
         if (leaderboardData.simBracketUserId) {
           setSimBracketUserId(leaderboardData.simBracketUserId);
         }
+        // Build canStillWin map from path-to-victory data
+        let canStillWinMap = new Map<number, boolean>();
+        if (pathRes.ok) {
+          const pathData = await pathRes.json();
+          const pathEntries = pathData.entries ?? [];
+          setPathToVictory(pathEntries);
+          for (const pe of pathEntries) {
+            canStillWinMap.set(pe.userId, pe.canStillWin);
+          }
+        }
+
         const mapped = leaderboardArray.map(
           (entry: any) => ({
             ...entry,
             roundPoints: entry.roundBreakdown || [0, 0, 0, 0, 0, 0],
+            canStillWin: canStillWinMap.has(entry.userId) ? canStillWinMap.get(entry.userId) : undefined,
           })
         );
         setEntries(mapped);
@@ -101,10 +114,7 @@ export default function LeaderboardPage() {
           setBadges(Array.isArray(badgesData) ? badgesData : []);
         }
 
-        if (pathRes.ok) {
-          const pathData = await pathRes.json();
-          setPathToVictory(pathData.entries ?? []);
-        }
+        // path-to-victory already processed above
       } catch {
         setError("Failed to load leaderboard.");
       } finally {
