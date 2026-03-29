@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import LeaderboardTable from "@/components/leaderboard-table";
+import PathToVictory from "@/components/path-to-victory";
 import UniquePicks from "@/components/unique-picks";
 import Badges from "@/components/badges";
 import { SocialBuzz } from "@/components/social-buzz";
@@ -53,6 +54,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [uniquePicks, setUniquePicks] = useState<UniquePick[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [pathToVictory, setPathToVictory] = useState<any[]>([]);
   const [simBracketUserId, setSimBracketUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,10 +62,11 @@ export default function LeaderboardPage() {
   useEffect(() => {
     async function fetchAll() {
       try {
-        const [leaderboardRes, uniqueRes, badgesRes] = await Promise.all([
+        const [leaderboardRes, uniqueRes, badgesRes, pathRes] = await Promise.all([
           fetch("/api/leaderboard"),
           fetch("/api/leaderboard/unique-picks"),
           fetch("/api/leaderboard/badges"),
+          fetch("/api/leaderboard/path-to-victory"),
         ]);
 
         if (!leaderboardRes.ok) {
@@ -95,6 +98,11 @@ export default function LeaderboardPage() {
         if (badgesRes.ok) {
           const badgesData = await badgesRes.json();
           setBadges(Array.isArray(badgesData) ? badgesData : []);
+        }
+
+        if (pathRes.ok) {
+          const pathData = await pathRes.json();
+          setPathToVictory(pathData.entries ?? []);
         }
       } catch {
         setError("Failed to load leaderboard.");
@@ -141,6 +149,8 @@ export default function LeaderboardPage() {
       ) : (
         <LeaderboardTable entries={entries} badges={badges} simBracketUserId={simBracketUserId} />
       )}
+
+      {pathToVictory.length > 0 && <PathToVictory entries={pathToVictory} />}
 
       {uniquePicks.length > 0 && <UniquePicks picks={uniquePicks} />}
 
