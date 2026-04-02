@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { games, picks, teams, appState } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchScoreboard, parseTournamentData, TOURNAMENT_DATES } from "@/lib/espn";
-import { getNextGame, getSlotInNextGame, REGIONS } from "@/lib/bracket-utils";
+import { getNextGame, getSlotInNextGame, REGIONS, FINAL_FOUR_MATCHUPS } from "@/lib/bracket-utils";
 import { POINTS_PER_ROUND } from "@/lib/scoring";
 
 const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
@@ -134,7 +134,29 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
         }
       }
 
-      // No fallback for R2+ — ESPN's gameIndex doesn't match bracket structure
+      // R5 (Final Four) and R6 (Championship): match by team region
+      if (!dbGame && event.round >= 5) {
+        if (event.round === 6) {
+          // Only one championship game
+          dbGame = gameByRoundRegionIndex.get("6-Final Four-0");
+        } else {
+          // Round 5: determine which semifinal by team region
+          for (const eventTeam of [event.team1, event.team2]) {
+            if (!eventTeam || dbGame) continue;
+            const teamDbId = espnToDbId.get(eventTeam.espnTeamId);
+            if (!teamDbId) continue;
+            const teamRecord = allTeams.find((t) => t.id === teamDbId);
+            if (!teamRecord) continue;
+            if (teamRecord.name === "TBD" || teamRecord.abbreviation === "TBD") continue;
+            const semiIndex = FINAL_FOUR_MATCHUPS.findIndex(
+              (matchup) => matchup.includes(teamRecord.region as typeof REGIONS[number])
+            );
+            if (semiIndex !== -1) {
+              dbGame = gameByRoundRegionIndex.get(`5-Final Four-${semiIndex}`);
+            }
+          }
+        }
+      }
     }
 
     if (!dbGame) continue;
