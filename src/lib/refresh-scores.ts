@@ -149,7 +149,7 @@ export async function doRefreshScores(): Promise<{ updatedGames: number; scoredP
             if (!teamRecord) continue;
             if (teamRecord.name === "TBD" || teamRecord.abbreviation === "TBD") continue;
             const semiIndex = FINAL_FOUR_MATCHUPS.findIndex(
-              (matchup) => matchup.includes(teamRecord.region as typeof REGIONS[number])
+              (matchup) => (matchup as readonly string[]).includes(teamRecord.region)
             );
             if (semiIndex !== -1) {
               dbGame = gameByRoundRegionIndex.get(`5-Final Four-${semiIndex}`);
