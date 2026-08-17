@@ -1,0 +1,3 @@
+{
+  "install": "mkdir -p ~/.cursor/skills && (gh skill install pmcclelland/skills --agent cursor --scope user --all --force || (rm -rf /tmp/paul-skills && git clone --depth 1 https://github.com/pmcclelland/skills.git /tmp/paul-skills && cp -R /tmp/paul-skills/skills/. ~/.cursor/skills/))"
+}
